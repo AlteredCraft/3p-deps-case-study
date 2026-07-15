@@ -21,7 +21,7 @@ def create_app(config_class: type = Config) -> Flask:
     login_manager.init_app(app)
     csrf.init_app(app)
 
-    # Import models so the Flask-Login user loader is registered, and
+    # Import models so the login user loader is registered, and
     # register blueprints.
     from . import models  # noqa: F401
     from .auth import bp as auth_bp

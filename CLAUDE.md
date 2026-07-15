@@ -7,10 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A case study for an AlteredCraft article on using AI to remove/limit third-party dependencies. It holds **two variants of the same Flask + SQLite + login todo app** plus shared research:
 
 - `todo-3pdeps/` — the baseline, full conventional dependency stack.
-- `todo-3pdeps-limited/` — a behavior-identical copy whose heavy dependencies (SQLAlchemy first, ~62% of the prod footprint; then email-validator, Flask-WTF, WTForms, Flask-Login) are progressively replaced with small, purpose-built code. Security-sensitive libraries (`werkzeug.security` password hashing) are deliberately **kept**.
-- `research/notes.md` — the premise, the cloc dependency-footprint baselines, and the testing strategy. **Read it before doing any dependency-removal work.**
+- `todo-3pdeps-limited/` — a behavior-identical copy whose heavy dependencies (SQLAlchemy, email-validator, Flask-WTF, WTForms, Flask-Login, python-dotenv) **have been replaced** with small, purpose-built modules (`app/db.py`, `app/csrf.py`, `app/formlib.py`, `app/login.py`); its only declared runtime dependency is `flask`. Security-sensitive libraries (`werkzeug.security` password hashing, itsdangerous session signing via Flask) are deliberately **kept**.
+- `research/notes.md` — the premise, the cloc dependency-footprint baselines, the testing strategy, and the **removal log** (per-step LOC deltas). **Read it before doing any dependency work.**
 
-The two variants are **independent `uv` projects** (each with its own `pyproject.toml`, lockfile, and `.venv`) so their dependency sets can diverge. They start identical and must pass the same test suite; the diff in their `cloc` metrics is the article's payload.
+The two variants are **independent `uv` projects** (each with its own `pyproject.toml`, lockfile, and `.venv`) so their dependency sets can diverge. They must pass the same test suite; the diff in their `cloc` metrics is the article's payload (217,493 → 32,654 third-party prod LOC; see the removal log in `research/notes.md`).
 
 ## Commands
 
@@ -28,28 +28,29 @@ uv run flask --app run init-db                              # create DB tables (
 
 To drive a variant without changing directory, use `uv run --directory <variant> …`.
 
-Each variant needs `SECRET_KEY` in its environment or local `.env` (see `.env.example`); `run.py` loads `.env` via `python-dotenv`. Missing required config fails fast (`app/config._require`). The SQLite file is `instance/todo.sqlite` (gitignored).
+Each variant needs `SECRET_KEY` in its environment or local `.env` (see `.env.example`); `run.py` loads `.env` (via `python-dotenv` in the baseline, a small first-party loader in the limited variant). Missing required config fails fast (`app/config._require`). The SQLite file is `instance/todo.sqlite` (gitignored). DB location override: `DATABASE_URL` (baseline) / `DATABASE_PATH` (limited).
 
-## Architecture (applies to both variants)
+## Architecture
 
-Application-factory pattern. `create_app()` in `app/__init__.py` binds the unbound extensions from `app/extensions.py` (`db`, `login_manager`, `csrf`, plus the SQLAlchemy 2.0 `Base`) via `init_app`, registers the two blueprints, runs `db.create_all()`, and wires the `init-db` CLI command, error handlers, and a `today` template context processor. Extensions are unbound so tests can build many independent app instances.
+Both variants use the application-factory pattern. `create_app()` in `app/__init__.py` binds the unbound extensions from `app/extensions.py` via `init_app`, registers the two blueprints, creates the DB tables, and wires the `init-db` CLI command, error handlers, and a `today` template context processor. Extensions are unbound so tests can build many independent app instances. Blueprints are flat modules in both: `app/auth.py` (`register` / `login` / `logout`) and `app/todos.py` (task CRUD + list filtering/sorting).
 
-- **Blueprints** (flat modules): `app/auth.py` (`register` / `login` / `logout`) and `app/todos.py` (task CRUD + list filtering/sorting).
-- **Models** — `app/models.py`: `User` (subclasses `UserMixin`) and `Task`, SQLAlchemy 2.0 `Mapped`/`mapped_column`. The Flask-Login `user_loader` lives here.
-- **Forms** — `app/forms.py`: Flask-WTF/WTForms with validation, including case-insensitive uniqueness checks for username/email.
+Where the variants differ:
 
-Cross-cutting invariants (each spans multiple files — preserve them through any refactor):
+- **`todo-3pdeps` (baseline)** — `extensions.py` holds Flask-SQLAlchemy `db` + `Base`, Flask-Login `login_manager`, Flask-WTF `csrf`. `models.py` is SQLAlchemy 2.0 `Mapped`/`mapped_column`; `forms.py` is Flask-WTF/WTForms.
+- **`todo-3pdeps-limited`** — the same seams, filled with purpose-built modules: `app/db.py` (request-scoped `sqlite3` connection on `flask.g` + schema DDL), `app/models.py` (dataclass `User`/`Task` + all SQL query functions), `app/csrf.py` (session-token CSRF, enforced globally in `before_request`, config key `CSRF_ENABLED`), `app/formlib.py` (micro form library rendering WTForms-compatible markup) + `app/forms.py` (form definitions), `app/login.py` (`current_user`, `login_required`, signed remember-me cookie). The SQLite **schema is identical** to the baseline's — the sqlite3-based tests depend on it.
+
+Cross-cutting invariants (each spans multiple files — preserve them through any refactor, in both variants):
 
 - **Per-user authorization returns 404, not 403.** Every task route resolves the task through `todos._get_owned_task_or_404()`, which aborts 404 when the task's `user_id` isn't the `current_user`. This deliberately hides existence; there is no reachable 403 path.
-- **CSRF is global** via Flask-WTF `CSRFProtect`; every state-changing form posts a `csrf_token`.
+- **CSRF is global** (Flask-WTF `CSRFProtect` in the baseline; `app/csrf.py` in the limited variant); every state-changing form posts a `csrf_token`, missing/invalid → 400.
 - **Open-redirect protection**: the login `next` parameter is gated by `auth._is_safe_redirect()` (same-site relative paths only).
-- **Priority sorting is done in SQL**, not Python — `todos._priority_ordering()` builds a `CASE` from `models.PRIORITY_RANK`.
+- **Priority sorting is done in SQL**, not Python — a `CASE` built from `models.PRIORITY_RANK` (`todos._priority_ordering()` in the baseline, `models.priority_ordering()` in the limited variant).
 
 ## Testing is a black-box refactor oracle (important)
 
-The suite exists to prove a dependency swap **preserved behavior**, so it is deliberately decoupled from the libraries being replaced. This matters most in `todo-3pdeps-limited/`, where dependencies are actively being removed. Rules (full rationale in `research/notes.md` → "Testing strategy"):
+The suite exists to prove a dependency swap **preserved behavior**, so it is deliberately decoupled from the libraries (or first-party modules) behind the seams. It is what validated every removal in `todo-3pdeps-limited/`. Rules (full rationale in `research/notes.md` → "Testing strategy"):
 
-- **Test bodies assert only through the HTTP boundary** (the Flask test client) **or the stdlib `sqlite3` module** against the `users`/`tasks` schema. **Do not import the ORM, models, or forms in a test body** — that reintroduces the coupling the suite is designed to avoid.
+- **Test bodies assert only through the HTTP boundary** (the Flask test client) **or the stdlib `sqlite3` module** against the `users`/`tasks` schema. **Do not import the data layer, models, or forms in a test body** — that reintroduces the coupling the suite is designed to avoid.
 - **`tests/conftest.py` is the single implementation-aware adapter** (it builds the app, wires the temp DB, disposes connections, and provides HTTP + `sqlite3` helpers). When a dependency is swapped in the limited variant, update *its* `conftest.py` — not the test bodies.
 - The `csrf_client` fixture runs with CSRF enabled (the default `client` disables it); use it for CSRF-contract tests.
 - **The same suite must stay green after each dependency is removed.** A green run in `todo-3pdeps-limited/` is the evidence a LOC reduction came for free. Keep the two variants' test suites in sync unless a behavior genuinely changed.

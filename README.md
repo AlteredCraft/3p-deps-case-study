@@ -13,7 +13,7 @@ so the trade-off can be measured directly:
 | Directory | What it is |
 | --- | --- |
 | [`todo-3pdeps/`](todo-3pdeps/) | The baseline — conventional Python web stack (Flask, SQLAlchemy, Flask-Login, Flask-WTF, WTForms, email-validator). |
-| [`todo-3pdeps-limited/`](todo-3pdeps-limited/) | A copy whose heavy dependencies are progressively replaced with purpose-built code, keeping the same behavior. |
+| [`todo-3pdeps-limited/`](todo-3pdeps-limited/) | The same app after the removal experiment: heavy dependencies replaced with purpose-built code, behavior preserved. Sole declared runtime dependency: `flask`. Third-party prod footprint: 217,493 → 32,654 LOC (−85%). |
 | [`research/`](research/notes.md) | The article premise, cloc dependency baselines, and the testing strategy. |
 
 Both variants are **independent `uv` projects** (each with its own `pyproject.toml`,

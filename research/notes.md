@@ -275,6 +275,34 @@ Step notes:
    `SECRET_KEY` unset in the environment, `run.py` still boots from `.env`.
    No conftest change.
 
+### Where it landed (2026-07-15)
+
+`todo-3pdeps-limited/pyproject.toml` now declares **one** runtime dependency:
+`flask`. Everything else that ships is Flask's own transitive core.
+
+| Scope | Baseline | After step 6 | Δ |
+| --- | ---: | ---: | ---: |
+| Third-party (prod, filtered) | 217,493 | 32,654 | **−184,839 (−85.0 %)** |
+| First-party `app/` | 964 | 1,414 | +450 |
+| Python-only first-party | 428 | 878 | +450 |
+| 3P-to-1P shipping ratio | ~225 : 1 | ~23 : 1 | |
+
+- **~411 lines of dependency code shed per first-party line added.**
+- New purpose-built modules: `db.py` (66 raw lines), `csrf.py` (44),
+  `login.py` (143), `formlib.py` (343) — each fully readable in one sitting.
+- Remaining third-party, all via `flask`: werkzeug 11,986 (**the KEEP** —
+  password hashing lives in `werkzeug.security`, and Flask requires werkzeug
+  regardless), jinja2 8,557, click 6,673, flask 4,068, itsdangerous 650,
+  markupsafe 394, blinker 268.
+- The unchanged 57-test suite stayed green after every step; only
+  `conftest.py` changed (steps 1 and 3), exactly as the testing strategy
+  prescribes. Beyond the suite: form pages render byte-identical to the
+  baseline variant, and the un-pinned remember-me contract was verified by
+  hand.
+- Per the caveat, the security-sensitive primitives were **not** rewritten:
+  password hashing (werkzeug), session signing (itsdangerous via Flask),
+  token generation/comparison (`secrets`, `hmac`).
+
 ## Testing strategy (the refactor oracle)
 
 The test suite is a **black-box behavioral oracle**: its job is to prove a
