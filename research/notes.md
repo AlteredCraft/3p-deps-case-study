@@ -211,6 +211,7 @@ measurement (prod-only env, cruft filtered, `cloc app` for first-party).
 | 1 | sqlalchemy, flask-sqlalchemy (+ typing_extensions) | 137,490 | +100 | 80,003 | 1,064 |
 | 2 | email-validator (+ idna, dnspython) | 39,457 | +21 | 40,546 | 1,085 |
 | 3 | flask-wtf | 520 | +39 | 40,026 | 1,124 |
+| 4 | wtforms (+ its i18n catalogs) | 5,923 | +195 | 34,103 | 1,319 |
 
 Step notes:
 
@@ -245,6 +246,15 @@ Step notes:
    we replaced the CSRF *plumbing* but kept the cryptographic primitives
    (Flask's itsdangerous-signed session, `secrets`, `hmac.compare_digest`)
    with the experts.
+4. **WTForms → `app/formlib.py`** (2026-07-15). A ~195-line micro form library
+   implementing exactly the slice used: 7 field types, 6 validators,
+   request/obj binding, inline `validate_<field>` hooks, and rendering that
+   reproduces WTForms markup (sorted attributes, HTML5 constraint attrs
+   derived from validators, textarea newline guard, WTForms' default error
+   messages). Verified beyond the suite: register/login/new/index/edit pages
+   render **byte-identical** to the baseline variant with CSRF on. The
+   biggest first-party spend so far — the price of owning form rendering —
+   still ~30:1 LOC in our favor. No conftest change.
 
 ## Testing strategy (the refactor oracle)
 

@@ -27,7 +27,7 @@ categories, due dates, notes, search, filtering, and sorting.
 | Web framework   | Flask 3 (application factory) |
 | Database        | SQLite via stdlib `sqlite3` (purpose-built data layer) |
 | Auth/sessions   | Flask-Login                   |
-| Forms/CSRF      | WTForms + first-party CSRF (`app/csrf.py`) |
+| Forms/CSRF      | First-party (`app/formlib.py` + `app/csrf.py`) |
 | Dependency mgmt | uv                            |
 
 ## Getting started
@@ -83,7 +83,8 @@ app/
   db.py           # sqlite3 connection handling + schema DDL
   csrf.py         # session-token CSRF protection
   models.py       # User/Task models, SQL queries, user loader
-  forms.py        # WTForms with validation + Flask glue
+  formlib.py      # micro form library (fields, validators, rendering)
+  forms.py        # the app's form definitions
   auth.py         # register / login / logout blueprint
   todos.py        # task CRUD + filtering blueprint
   templates/      # Jinja2 templates
