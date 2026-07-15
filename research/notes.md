@@ -172,3 +172,100 @@ the **217,493 LOC** of production dependency code can we responsibly shed — an
 where (password hashing, cookie signing, HTML escaping) is keeping the
 expert-maintained library still the right call? Subsequent experiments replace
 dependencies one at a time and re-measure this table.
+
+## Testing strategy (the refactor oracle)
+
+The whole investigation rests on one instrument: a test suite that tells us
+whether a dependency swap **preserved behavior**. If the tests can't do that
+faithfully, every LOC-reduction number is meaningless — we'd have no evidence the
+slimmer app still works. So before touching a single dependency, we hardened the
+suite into a proper oracle (branch `harden-tests`).
+
+### The core principle: test behavior, not implementation
+
+A refactor changes the implementation on purpose. A test coupled to that
+implementation therefore breaks *because we did the work*, not because anything
+regressed — it can't distinguish "you broke it" from "you changed it." That makes
+it useless as a refactor oracle.
+
+The original suite had exactly this flaw: ~8 tests imported the ORM
+(`from app.models import Task`, `db.session.scalar(db.select(...))`) to assert
+state. Swap SQLAlchemy out and those tests fail at *import*, telling us nothing
+about correctness. The fix is to assert only on what a **user** can observe.
+
+### Two allowed observation points (and nothing else)
+
+1. **HTTP boundary (preferred).** Drive the app through the Flask test client and
+   assert on status codes, redirects, flash messages, and rendered HTML. This is
+   implementation-agnostic: routing → forms → validation → session → DB →
+   templates all run, but the test only sees the request and the response.
+2. **Persistence contract via stdlib `sqlite3`.** For state a user can't observe
+   over HTTP (a password is *hashed*, `completed_at` is set), query the SQLite
+   file directly with Python's standard-library `sqlite3` — never the ORM. This
+   depends only on the **schema** (`users` / `tasks` tables), which the refactor
+   deliberately preserves. `sqlite3` is Python-the-platform → first-party → it
+   survives every dependency swap.
+
+The ORM, the forms library, the validators — the things being replaced — appear
+in **zero** test bodies.
+
+### One adapter, many implementations
+
+`tests/conftest.py` is the *only* implementation-aware file: it builds the app,
+wires the temp database, and disposes connections in teardown. It is the seam.
+When we replace a dependency we update this adapter (e.g. swap the SQLAlchemy
+engine-dispose for closing raw `sqlite3` connections); the ~57 test bodies stay
+untouched. That is the structural guarantee that the *same* behavioral contract
+is enforced before and after each cut.
+
+### Pin what each doomed dependency does — before removing it
+
+A behavior with no test isn't a contract; it's a coincidence waiting to regress.
+For every dependency slated for replacement we added tests that pin the behavior
+it currently provides, so the hand-written replacement has an explicit target:
+
+| Dependency (to replace) | Behavior now pinned by a test |
+| --- | --- |
+| SQLAlchemy | CRUD, toggle, per-user isolation, search, category/priority/status filters, priority/title/due sorts |
+| Flask-WTF | CSRF token rendered; POST without token → 400; with token → success |
+| WTForms | required fields, length bounds, username regex, invalid date, invalid priority choice, password match |
+| Flask-Login | login by username/email, logout clears session, protected-route redirect, safe `next` redirect, open-redirect blocked |
+| email-validator | malformed addresses rejected, valid accepted |
+| werkzeug (**keep**) | password stored hashed, never plaintext |
+
+### Do we need integration or E2E tests? No.
+
+- **Integration: already have it.** The test client exercises the entire
+  in-process request path (routing → validation → session → real SQLite →
+  template) as one integrated stack. Everything the refactor touches lives inside
+  that path. No separate integration tier is warranted.
+- **Browser E2E (Playwright/Selenium): not for this work.** The refactor is
+  dependency-*internal* — it changes neither the HTML/CSS/JS nor the HTTP
+  contract, which is all E2E would add. The app's JS is trivial and progressively
+  enhanced (auto-submitting filter selects, a delete `confirm()`, a `<noscript>`
+  fallback); cookie/redirect semantics are already covered by the test client.
+  E2E is slow and flaky — the wrong tool for a tight red-green loop while swapping
+  one dependency at a time. A one-off manual `curl` smoke through the real server
+  (done once) is enough. Revisit only if a later step adds real client-side JS or
+  an API+SPA front end.
+
+### Baseline state of the oracle
+
+| Metric | Before hardening | After |
+| --- | ---: | ---: |
+| Tests | 21 | **57** |
+| Line coverage (`app/`) | 95% | **100%** |
+| ORM-coupled assertions | ~8 | **0** |
+| `ResourceWarning`s (leaked DB handles) | many | **0** |
+
+100% line coverage is necessary but not sufficient — it proves every line *ran*,
+not that every behavior is asserted. The value is in the behavioral contract
+table above; coverage is just the floor. `pytest-cov` is now a dev dependency so
+we can re-measure after each removal.
+
+### The rule for the experiments that follow
+
+**The same suite must stay green after each dependency is removed.** A green run
+is the evidence that a LOC reduction came for free (behavior preserved); a red run
+says the "precise" replacement missed a case the library handled. Only the
+`conftest.py` adapter may change between steps — never the assertions.
