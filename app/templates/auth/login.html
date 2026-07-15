@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+  <h1>Welcome back</h1>
+  <p class="muted">Log in to see your tasks.</p>
+
+  <form method="post" novalidate>
+    {{ form.csrf_token }}
+
+    <div class="field">
+      {{ form.username.label }}
+      {{ form.username(class="input", autofocus=true, autocomplete="username") }}
+      {% for error in form.username.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+
+    <div class="field">
+      {{ form.password.label }}
+      {{ form.password(class="input", autocomplete="current-password") }}
+      {% for error in form.password.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+
+    <label class="checkbox">
+      {{ form.remember() }} <span>Remember me</span>
+    </label>
+
+    {{ form.submit(class="btn btn-primary btn-block") }}
+  </form>
+
+  <p class="auth-alt">New here? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+</div>
+{% endblock %}

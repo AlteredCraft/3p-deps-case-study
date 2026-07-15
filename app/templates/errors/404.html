@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+
+{% block content %}
+<div class="empty">
+  <p class="empty-emoji">🔍</p>
+  <h1>Page not found</h1>
+  <p class="muted">The page you’re looking for doesn’t exist or isn’t yours to view.</p>
+  <a class="btn btn-primary" href="{{ url_for('todos.index') }}">Back to my tasks</a>
+</div>
+{% endblock %}
