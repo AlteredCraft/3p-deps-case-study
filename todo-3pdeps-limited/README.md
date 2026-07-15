@@ -1,11 +1,13 @@
 # Todo — Flask + SQLite + Login
 
 A full-featured multi-user todo web app built with Flask and SQLite — and
-**almost nothing else**: this is the limited-dependencies variant, where the
-conventional stack (SQLAlchemy, Flask-Login, Flask-WTF/WTForms,
+**almost nothing else**: this is the limited-dependencies variant of the
+repo's experiment (see [`../research/notes.md`](../research/notes.md)), where
+the conventional stack (SQLAlchemy, Flask-Login, Flask-WTF/WTForms,
 email-validator, python-dotenv) has been replaced by small, purpose-built
-first-party modules. Each user has a private, isolated list of tasks with
-priorities, categories, due dates, notes, search, filtering, and sorting.
+first-party modules. `pyproject.toml` declares a single runtime dependency:
+`flask`. Each user has a private, isolated list of tasks with priorities,
+categories, due dates, notes, search, filtering, and sorting.
 
 ## Features
 
@@ -73,8 +75,11 @@ clear message rather than silently using a guessable default.
 uv run pytest
 ```
 
-Covers auth (registration validation, login, hashing), full task CRUD,
-per-user authorization isolation, filtering/search, and sorting.
+Covers auth (registration validation, login, hashing, remember-me), CSRF,
+full task CRUD, per-user authorization isolation, filtering/search, and
+sorting. Test bodies are byte-identical to the baseline variant's —
+`tests/conftest.py` is the only implementation-aware adapter. `app/` holds
+100% line coverage.
 
 ## Project layout
 

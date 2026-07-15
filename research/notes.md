@@ -47,11 +47,11 @@ As initially built, it leans on the conventional Python web stack:
 - `flask-wtf` / `wtforms` — forms + CSRF
 - `email-validator`, `python-dotenv`, `werkzeug` (transitive), etc.
 
-The investigation: progressively examine which of these could be replaced by a
-small amount of AI-written, purpose-built code — and which (e.g. the security
-primitives in `werkzeug.security`) are worth keeping. We'll track the
-**lines-of-code tradeoff** at each step: how much dependency code we shed vs. how
-much first-party code we take on.
+The investigation (since executed — see the Removal log): progressively examine
+which of these could be replaced by a small amount of AI-written, purpose-built
+code — and which (e.g. the security primitives in `werkzeug.security`) are worth
+keeping. We track the **lines-of-code tradeoff** at each step: how much
+dependency code we shed vs. how much first-party code we take on.
 
 ### Repository layout (two variants)
 
@@ -59,8 +59,9 @@ The repo holds the app in two independent `uv` projects so the trade-off can be
 measured directly:
 
 - `todo-3pdeps/` — the baseline described above (full dependency stack).
-- `todo-3pdeps-limited/` — a behavior-identical copy whose heavy dependencies are
-  progressively replaced; the same test suite must stay green after each removal.
+- `todo-3pdeps-limited/` — a behavior-identical copy whose heavy dependencies
+  **were replaced one at a time**, the same test suite green after each step.
+  The full record is the Removal log below.
 
 The baseline cloc figures below were taken on `todo-3pdeps/` (originally at the
 repo root, before the split). Re-run the same measurement against each variant to
@@ -190,20 +191,27 @@ cloc app
 4. **Framework glue is thin; the engines are heavy.** flask + its three glue
    packages ≈ 6.3k LOC. The weight lives in SQLAlchemy and the email/DNS stack.
 
+*(Post-experiment: all four observations held — see the Removal log.)*
+
 ### The tradeoff question this sets up
 
 If AI can write the precise ~few-hundred lines our app actually needs, how much of
 the **217,493 LOC** of production dependency code can we responsibly shed — and
 where (password hashing, cookie signing, HTML escaping) is keeping the
-expert-maintained library still the right call? Subsequent experiments replace
-dependencies one at a time and re-measure this table.
+expert-maintained library still the right call? **Answered below**: the Removal
+log replaces the dependencies one at a time and re-measures; "The keep, argued"
+documents where the cutting stopped and why.
 
 ## Removal log (todo-3pdeps-limited)
 
-Each step removes one dependency from `todo-3pdeps-limited/`, replacing it with
-purpose-built first-party code. A step only counts when the **unchanged 57-test
-suite is green** afterwards. Numbers come from re-running the baseline
-measurement (prod-only env, cruft filtered, `cloc app` for first-party).
+Each step removed one dependency from `todo-3pdeps-limited/`, replacing it with
+purpose-built first-party code, and landed as **one git commit**. A step only
+counted when the **unchanged test suite was green** afterwards (57 tests during
+the removals; grown to 65 by the post-experiment hardening below). Numbers come
+from re-running the baseline measurement (prod-only env, cruft filtered,
+`cloc app` for first-party). Step 0 re-measures the fresh clone: 964 first-party
+LOC vs the pre-split 967 in the headline table — 3 lines of drift from the repo
+split; every delta below chains from the re-measured figure.
 
 | Step | Dependency removed | 3P LOC shed | 1P LOC added | 3P total | 1P total (`app/`) |
 | ---: | --- | ---: | ---: | ---: | ---: |
@@ -394,6 +402,10 @@ platform. "Limiting, not eliminating," demonstrated at both ends.
 
 ## Testing strategy (the refactor oracle)
 
+*(Written before the removals; kept in the present tense as the operating
+contract for any future swap or refactor. The Removal log above is this
+strategy, executed.)*
+
 The test suite is a **black-box behavioral oracle**: its job is to prove a
 dependency swap preserved behavior. Without that guarantee every LOC-reduction
 number is meaningless — there'd be no evidence the slimmer app still works.
@@ -417,21 +429,22 @@ The ORM, forms library, and validators — the things being replaced — appear 
 **zero** test bodies.
 
 **One adapter.** `tests/conftest.py` is the only implementation-aware file: it
-builds the app, wires the temp DB, disposes connections, and provides the HTTP +
-`sqlite3` helpers. Replacing a dependency means updating this seam (e.g. swapping
-the SQLAlchemy engine-dispose for closing raw `sqlite3` connections) while the
-test bodies stay untouched — which is what enforces the *same* contract before and
-after each cut.
+builds the app, wires the temp DB, and provides the HTTP + `sqlite3` helpers.
+Replacing a dependency means updating this seam while the test bodies stay
+untouched — which is what enforces the *same* contract before and after each
+cut. (In practice only steps 1 and 3 touched it: two config-key renames, and
+the SQLAlchemy engine-dispose teardown deleted once connections became
+request-scoped.)
 
-**Each doomed dependency's behavior is pinned by a test**, giving the replacement
-an explicit target:
+**Each replaced dependency's behavior is pinned by a test**, which gave every
+replacement an explicit target:
 
-| Dependency (to replace) | Behavior pinned |
+| Dependency (replaced) | Behavior pinned |
 | --- | --- |
 | SQLAlchemy | CRUD, toggle, per-user isolation, search, category/priority/status filters, priority/title/due sorts |
 | Flask-WTF | CSRF token rendered; POST without token → 400; with token → success |
 | WTForms | required fields, length bounds, username regex, invalid date, invalid priority choice, password match |
-| Flask-Login | login by username/email, logout clears session, protected-route redirect, safe `next` redirect, open-redirect blocked |
+| Flask-Login | login by username/email, logout clears session, protected-route redirect, safe `next` redirect, open-redirect blocked; remember-me contract (added post-experiment) |
 | email-validator | malformed addresses rejected, valid accepted |
 | werkzeug (**keep**) | password stored hashed, never plaintext |
 
@@ -444,7 +457,10 @@ app's JS is trivial and progressively enhanced; cookie/redirect semantics are
 covered by the test client.)
 
 **The rule for every experiment:** the same suite must stay green after each
-dependency is removed. Green = the LOC reduction came for free; red = the
-"precise" replacement missed a case the library handled. Only `conftest.py` may
-change between steps — never the assertions. (Line coverage is a floor, not the
-contract: it shows every line ran, not that every behavior is asserted.)
+change. Green = the change came for free; red = the "precise" replacement missed
+a case the library handled. Only `conftest.py` may change during a swap — never
+the assertions. *Adding* pins is different and allowed: new tests go into **both
+variants in lockstep**, and a new pin that fails on one variant has found a
+parity bug, not a bad test (this happened once — see the post-experiment note).
+(Line coverage is a floor, not the contract: it shows every line ran, not that
+every behavior is asserted. The floor is 100 % on `app/`.)

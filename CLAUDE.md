@@ -8,9 +8,9 @@ A case study for an AlteredCraft article on using AI to remove/limit third-party
 
 - `todo-3pdeps/` — the baseline, full conventional dependency stack.
 - `todo-3pdeps-limited/` — a behavior-identical copy whose heavy dependencies (SQLAlchemy, email-validator, Flask-WTF, WTForms, Flask-Login, python-dotenv) **have been replaced** with small, purpose-built modules (`app/db.py`, `app/csrf.py`, `app/formlib.py`, `app/login.py`); its only declared runtime dependency is `flask`. Security-sensitive libraries (`werkzeug.security` password hashing, itsdangerous session signing via Flask) are deliberately **kept**.
-- `research/notes.md` — the premise, the cloc dependency-footprint baselines, the testing strategy, and the **removal log** (per-step LOC deltas). **Read it before doing any dependency work.**
+- `research/notes.md` — the premise, the cloc baselines, the **removal log** (per-step LOC deltas), the argued rationale for keeping Flask, and the testing strategy. **Read it before doing any dependency or refactor work.**
 
-The two variants are **independent `uv` projects** (each with its own `pyproject.toml`, lockfile, and `.venv`) so their dependency sets can diverge. They must pass the same test suite; the diff in their `cloc` metrics is the article's payload (217,493 → 32,654 third-party prod LOC; see the removal log in `research/notes.md`).
+The two variants are **independent `uv` projects** (each with its own `pyproject.toml`, lockfile, and `.venv`) so their dependency sets can diverge. They must pass the same test suite; the diff in their `cloc` metrics is the article's payload (217,493 → 32,654 third-party prod LOC, −85%). The removal was executed 2026-07-15 as one commit per dependency — `git log` is the step-by-step diff trail.
 
 ## Commands
 
@@ -48,9 +48,10 @@ Cross-cutting invariants (each spans multiple files — preserve them through an
 
 ## Testing is a black-box refactor oracle (important)
 
-The suite exists to prove a dependency swap **preserved behavior**, so it is deliberately decoupled from the libraries (or first-party modules) behind the seams. It is what validated every removal in `todo-3pdeps-limited/`. Rules (full rationale in `research/notes.md` → "Testing strategy"):
+The suite exists to prove a swap or refactor **preserved behavior**, so it is deliberately decoupled from the libraries (or first-party modules) behind the seams. It validated every removal in `todo-3pdeps-limited/`. Rules (full rationale in `research/notes.md` → "Testing strategy"):
 
 - **Test bodies assert only through the HTTP boundary** (the Flask test client) **or the stdlib `sqlite3` module** against the `users`/`tasks` schema. **Do not import the data layer, models, or forms in a test body** — that reintroduces the coupling the suite is designed to avoid.
-- **`tests/conftest.py` is the single implementation-aware adapter** (it builds the app, wires the temp DB, disposes connections, and provides HTTP + `sqlite3` helpers). When a dependency is swapped in the limited variant, update *its* `conftest.py` — not the test bodies.
+- **`tests/conftest.py` is the single implementation-aware adapter** (it builds the app, wires the temp DB, and provides HTTP + `sqlite3` helpers). When an implementation changes, update *its* `conftest.py` — not the test bodies.
 - The `csrf_client` fixture runs with CSRF enabled (the default `client` disables it); use it for CSRF-contract tests.
-- **The same suite must stay green after each dependency is removed.** A green run in `todo-3pdeps-limited/` is the evidence a LOC reduction came for free. Keep the two variants' test suites in sync unless a behavior genuinely changed.
+- **Test bodies are byte-identical across the two variants — keep them that way.** Never modify existing assertions to accommodate a change. *Adding* pins is allowed: new tests go into **both variants in lockstep**, and a new pin that fails on one variant has found a parity bug, not a bad test. A green run in both variants is the evidence a change came for free.
+- Coverage floor: `app/` stays at **100%** in the limited variant. An uncovered line in a purpose-built module is either dead code (delete it) or unpinned behavior (pin it in both variants).
