@@ -5,11 +5,11 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
-from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import get_db
 from .extensions import login_manager
+from .login import UserMixin
 
 # Allowed priority values, ordered from most to least urgent.
 PRIORITIES = ("high", "medium", "low")

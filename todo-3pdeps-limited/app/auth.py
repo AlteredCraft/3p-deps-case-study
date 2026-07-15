@@ -11,9 +11,8 @@ from flask import (
     request,
     url_for,
 )
-from flask_login import current_user, login_required, login_user, logout_user
-
 from .forms import LoginForm, RegistrationForm
+from .login import current_user, login_required, login_user, logout_user
 from .models import create_user, find_user_by_login
 
 bp = Blueprint("auth", __name__)

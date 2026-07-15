@@ -212,6 +212,7 @@ measurement (prod-only env, cruft filtered, `cloc app` for first-party).
 | 2 | email-validator (+ idna, dnspython) | 39,457 | +21 | 40,546 | 1,085 |
 | 3 | flask-wtf | 520 | +39 | 40,026 | 1,124 |
 | 4 | wtforms (+ its i18n catalogs) | 5,923 | +195 | 34,103 | 1,319 |
+| 5 | flask-login | 683 | +95 | 33,420 | 1,414 |
 
 Step notes:
 
@@ -255,6 +256,16 @@ Step notes:
    render **byte-identical** to the baseline variant with CSRF on. The
    biggest first-party spend so far — the price of owning form rendering —
    still ~30:1 LOC in our favor. No conftest change.
+5. **Flask-Login → `app/login.py`** (2026-07-15). ~95 lines: `current_user`
+   (werkzeug `LocalProxy`, cached on `g`), `login_user`/`logout_user`,
+   `login_required` (flash + redirect to the login view with `next`),
+   `UserMixin`, and a remember-me cookie (user id + HMAC-SHA512 signature
+   from `SECRET_KEY`, mirroring Flask-Login's own scheme). Remember-me is
+   not test-pinned, so it was verified by hand: cookie set only when
+   requested, login restored after session-cookie loss, tampered cookie
+   rejected, cleared on logout, HttpOnly/SameSite honored. Session identity
+   still rides Flask's itsdangerous-signed cookie — the crypto stayed with
+   the experts. No conftest change.
 
 ## Testing strategy (the refactor oracle)
 

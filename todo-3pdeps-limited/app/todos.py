@@ -10,10 +10,9 @@ from flask import (
     request,
     url_for,
 )
-from flask_login import current_user, login_required
-
 from . import models
 from .forms import TaskForm
+from .login import current_user, login_required
 from .models import Task
 
 bp = Blueprint("todos", __name__)

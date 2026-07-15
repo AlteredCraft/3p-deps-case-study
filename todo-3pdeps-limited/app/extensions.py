@@ -6,9 +6,8 @@ multiple app instances (tests, CLI, etc.).
 """
 from __future__ import annotations
 
-from flask_login import LoginManager
-
 from .csrf import CSRFProtect
+from .login import LoginManager
 
 login_manager = LoginManager()
 csrf = CSRFProtect()
