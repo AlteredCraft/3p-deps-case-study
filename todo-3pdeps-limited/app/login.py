@@ -28,20 +28,12 @@ class UserMixin:
     def is_authenticated(self) -> bool:
         return True
 
-    @property
-    def is_active(self) -> bool:
-        return True
-
     def get_id(self) -> str:
         return str(self.id)
 
 
 class AnonymousUser:
     is_authenticated = False
-    is_active = False
-
-    def get_id(self) -> None:
-        return None
 
 
 class LoginManager:

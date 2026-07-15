@@ -210,3 +210,18 @@ def test_edit_form_renders_prefilled(client, auth, db_path):
     assert resp.status_code == 200
     assert b"Edit task" in resp.data
     assert b'value="Edit me"' in resp.data  # form prefilled with current values
+
+
+# ---- server-side bounds and blank optional fields -----------------------------
+
+def test_create_rejects_overlong_title(client, auth):
+    resp = client.post("/tasks/new", data={"title": "x" * 201, "priority": "medium"},
+                       follow_redirects=True)
+    assert b"cannot be longer than 200 characters" in resp.data
+
+
+def test_create_accepts_blank_due_date(client, auth, db_path):
+    auth.create_task(title="No deadline", due_date="")
+    rows = db_query(db_path, "SELECT due_date FROM tasks WHERE title = ?", ("No deadline",))
+    assert len(rows) == 1
+    assert rows[0]["due_date"] is None

@@ -20,7 +20,7 @@ Run everything **from inside a variant directory** (that's where each `pyproject
 cd todo-3pdeps            # or todo-3pdeps-limited
 uv sync                   # create/refresh the variant's .venv
 uv run python run.py      # http://127.0.0.1:5000 (Flask dev server, debug on)
-uv run pytest             # all 57 tests
+uv run pytest             # all 65 tests
 uv run pytest tests/test_todos.py::test_edit_updates_task   # a single test (or -k <expr>)
 uv run pytest --cov=app --cov-report=term-missing           # coverage (app/ stays at 100%)
 uv run flask --app run init-db                              # create DB tables (factory also does this on startup)

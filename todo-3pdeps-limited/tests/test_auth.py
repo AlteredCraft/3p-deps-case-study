@@ -42,6 +42,7 @@ def test_register_persists_user_with_hashed_password(client, db_path):
         "@no-local-part.com",
         "no-domain@",
         "spaces in@example.com",
+        "user@localhost",              # no dot after the @-sign
     ],
 )
 def test_register_rejects_malformed_email(client, bad_email):
@@ -214,3 +215,52 @@ def test_login_rejects_unsafe_next(client, evil_next):
     location = resp.headers["Location"]
     assert "evil.example" not in location   # not redirected off-site
     assert location.endswith("/")           # fell back to the index
+
+
+# ---- remember me (survives session loss; cleared on logout; tamper-proof) ----
+
+def test_remember_me_survives_session_cookie_loss(client):
+    register(client)
+    logout(client)
+    login(client, remember=True)
+    assert client.get_cookie("remember_token") is not None
+    client.delete_cookie("session")                 # simulate browser restart
+    assert client.get("/", follow_redirects=False).status_code == 200
+
+
+def test_login_without_remember_sets_no_remember_cookie(client):
+    register(client)
+    logout(client)
+    login(client)
+    assert client.get_cookie("remember_token") is None
+
+
+def test_logout_clears_remember_cookie(client):
+    register(client)
+    logout(client)
+    login(client, remember=True)
+    logout(client)
+    client.delete_cookie("session")
+    resp = client.get("/", follow_redirects=False)  # remember cookie must be gone
+    assert resp.status_code == 302
+
+
+def test_tampered_remember_cookie_is_rejected(client):
+    register(client)
+    logout(client)
+    login(client, remember=True)
+    good = client.get_cookie("remember_token").value
+    bad = good[:-4] + ("beef" if not good.endswith("beef") else "dead")
+    client.delete_cookie("session")
+    client.delete_cookie("remember_token")
+    client.set_cookie("remember_token", bad)
+    resp = client.get("/", follow_redirects=False)
+    assert resp.status_code == 302
+
+
+def test_failed_login_preserves_remember_checkbox(client):
+    register(client)
+    logout(client)
+    resp = login(client, password="wrongpass", remember=True)
+    assert b"Invalid username or password" in resp.data
+    assert b"checked" in resp.data                  # checkbox state re-rendered

@@ -27,7 +27,7 @@ removal preserved behavior.
 cd todo-3pdeps           # or todo-3pdeps-limited
 uv sync
 uv run run.py     # http://127.0.0.1:5000
-uv run pytest            # 57 tests
+uv run pytest            # 65 tests
 ```
 
 Each variant needs a `SECRET_KEY` (see its `.env.example`). See the variant's own

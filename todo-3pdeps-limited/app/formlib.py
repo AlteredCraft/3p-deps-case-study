@@ -58,20 +58,18 @@ class Optional:
 
 
 class Length:
-    def __init__(self, min: int = -1, max: int = -1, message: str | None = None) -> None:
-        self.min, self.max, self.message = min, max, message
+    """Bounds on string length; every use in this app sets ``max``."""
+
+    def __init__(self, min: int = -1, max: int = -1) -> None:
+        self.min, self.max = min, max
 
     def __call__(self, form, field) -> None:
         length = len(field.data or "")
         if (self.min != -1 and length < self.min) or (self.max != -1 and length > self.max):
-            if self.message:
-                message = self.message
-            elif self.min != -1 and self.max != -1:
+            if self.min != -1:
                 message = f"Field must be between {self.min} and {self.max} characters long."
-            elif self.max != -1:
-                message = f"Field cannot be longer than {self.max} characters."
             else:
-                message = f"Field must be at least {self.min} characters long."
+                message = f"Field cannot be longer than {self.max} characters."
             raise ValidationError(message)
 
 
@@ -106,8 +104,6 @@ _EMAIL_LABEL_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 def is_valid_email(value: str) -> bool:
     local, sep, domain = value.rpartition("@")
     if not sep or not local or not domain:
-        return False
-    if len(local) > 64 or len(domain) > 253:
         return False
     if not _EMAIL_LOCAL_RE.match(local):
         return False

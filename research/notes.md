@@ -303,6 +303,30 @@ Step notes:
   password hashing (werkzeug), session signing (itsdangerous via Flask),
   token generation/comparison (`secrets`, `hmac`).
 
+### Post-experiment: hardening the oracle back to 100 % (2026-07-15)
+
+After step 6, line coverage of the limited variant's `app/` had slipped to
+97 % — the new purpose-built modules had branches no test exercised. Restoring
+the 100 % floor produced two findings worth keeping:
+
+1. **Dead code in "precise" replacements is a smell you can act on.** The
+   uncovered lines split cleanly into (a) code this app never calls —
+   `Length` custom messages, `UserMixin.is_active`, `AnonymousUser.get_id` —
+   which was simply **deleted** (you can't delete unused code out of a
+   library), and (b) real behavior nobody had pinned.
+2. **Writing the missing pins caught a genuine parity bug.** Eight tests were
+   added *identically to both variants* (suite: 57 → 65): the full remember-me
+   contract (cookie only on request, survives session loss, cleared on
+   logout, tamper-rejected), checkbox state re-render, server-side max-length
+   rejection, blank `due_date`, dotless email domain. The first draft also
+   pinned a 64-char email local-part limit — and the **baseline failed it**:
+   email-validator accepts a 65-char local part, so the step-2 replacement
+   had been quietly *stricter* than the library. The replacement was relaxed
+   to match. Behavior-identical means identical, not "better".
+   (Bonus: the new remember-me tests surface `DeprecationWarning`s from
+   flask-login's own `datetime.utcnow()` calls in the baseline — dependency
+   code ages too.)
+
 ## Testing strategy (the refactor oracle)
 
 The test suite is a **black-box behavioral oracle**: its job is to prove a
