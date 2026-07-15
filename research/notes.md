@@ -213,6 +213,7 @@ measurement (prod-only env, cruft filtered, `cloc app` for first-party).
 | 3 | flask-wtf | 520 | +39 | 40,026 | 1,124 |
 | 4 | wtforms (+ its i18n catalogs) | 5,923 | +195 | 34,103 | 1,319 |
 | 5 | flask-login | 683 | +95 | 33,420 | 1,414 |
+| 6 | python-dotenv | 766 | +0 (12 in dev-only `run.py`) | 32,654 | 1,414 |
 
 Step notes:
 
@@ -266,6 +267,13 @@ Step notes:
    rejected, cleared on logout, HttpOnly/SameSite honored. Session identity
    still rides Flask's itsdangerous-signed cookie — the crypto stayed with
    the experts. No conftest change.
+6. **python-dotenv → 12-line loader in `run.py`** (2026-07-15). The library
+   was only ever used by the dev entry point to read `.env`
+   (KEY=VALUE lines, existing env vars win). 766 LOC shipped to prod for a
+   dev convenience; the replacement adds zero shipping first-party LOC
+   because `run.py` is outside the `app/` count. Verified live: with
+   `SECRET_KEY` unset in the environment, `run.py` still boots from `.env`.
+   No conftest change.
 
 ## Testing strategy (the refactor oracle)
 
