@@ -76,10 +76,6 @@ class Task(db.Model):
             and self.due_date < date.today()
         )
 
-    @property
-    def priority_rank(self) -> int:
-        return PRIORITY_RANK.get(self.priority, 1)
-
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<Task {self.id} {self.title!r} completed={self.completed}>"
 

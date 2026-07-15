@@ -61,5 +61,5 @@ def _register_error_handlers(app: Flask) -> None:
         return render_template("errors/404.html"), 404
 
     @app.errorhandler(403)
-    def forbidden(error):  # pragma: no cover - trivial
+    def forbidden(error):  # pragma: no cover - defensive; no route raises 403
         return render_template("errors/404.html"), 403
