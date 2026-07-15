@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}My tasks{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div>
+    <h1>My tasks</h1>
+    <p class="stats">
+      <strong>{{ stats.remaining }}</strong> remaining ·
+      <span class="muted">{{ stats.done }} done · {{ stats.total }} total</span>
+    </p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('todos.create') }}">+ New task</a>
+</section>
+
+<form class="toolbar" method="get" action="{{ url_for('todos.index') }}">
+  <input type="search" name="q" class="input search" placeholder="Search tasks…"
+         value="{{ filters.q }}" aria-label="Search tasks">
+
+  <div class="segmented" role="group" aria-label="Status filter">
+    {% for value, label in [('all', 'All'), ('active', 'Active'), ('completed', 'Done')] %}
+      <a class="seg {{ 'is-active' if filters.status == value else '' }}"
+         href="{{ url_for('todos.index', status=value, category=filters.category, priority=filters.priority, q=filters.q, sort=filters.sort) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  <select name="priority" class="input select" aria-label="Priority filter" onchange="this.form.submit()">
+    <option value="">Any priority</option>
+    {% for p in ['high', 'medium', 'low'] %}
+      <option value="{{ p }}" {{ 'selected' if filters.priority == p else '' }}>{{ p.capitalize() }}</option>
+    {% endfor %}
+  </select>
+
+  {% if categories %}
+  <select name="category" class="input select" aria-label="Category filter" onchange="this.form.submit()">
+    <option value="">Any category</option>
+    {% for c in categories %}
+      <option value="{{ c }}" {{ 'selected' if filters.category == c else '' }}>{{ c }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+
+  <select name="sort" class="input select" aria-label="Sort by" onchange="this.form.submit()">
+    {% for value, label in sort_options.items() %}
+      <option value="{{ value }}" {{ 'selected' if filters.sort == value else '' }}>Sort: {{ label }}</option>
+    {% endfor %}
+  </select>
+
+  <input type="hidden" name="status" value="{{ filters.status }}">
+  <noscript><button type="submit" class="btn btn-ghost">Apply</button></noscript>
+</form>
+
+{% if tasks %}
+  <ul class="task-list">
+    {% for task in tasks %}
+      <li class="task {{ 'is-done' if task.completed else '' }} {{ 'is-overdue' if task.is_overdue else '' }}">
+        <form action="{{ url_for('todos.toggle', task_id=task.id) }}" method="post" class="toggle-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="checkbox-btn" aria-label="Toggle complete"
+                  title="{{ 'Mark as active' if task.completed else 'Mark as done' }}">
+            <span class="checkbox-box">{{ '✓' if task.completed else '' }}</span>
+          </button>
+        </form>
+
+        <div class="task-body">
+          <div class="task-title-row">
+            <span class="task-title">{{ task.title }}</span>
+            <span class="badge badge-{{ task.priority }}">{{ task.priority }}</span>
+            {% if task.category %}<span class="badge badge-cat">{{ task.category }}</span>{% endif %}
+          </div>
+          {% if task.notes %}<p class="task-notes">{{ task.notes }}</p>{% endif %}
+          {% if task.due_date %}
+            <p class="task-meta {{ 'overdue' if task.is_overdue else '' }}">
+              {% if task.is_overdue %}⚠ Overdue ·{% endif %}
+              Due {{ task.due_date.strftime('%b %-d, %Y') }}
+            </p>
+          {% endif %}
+        </div>
+
+        <div class="task-actions">
+          <a class="icon-btn" href="{{ url_for('todos.edit', task_id=task.id) }}" title="Edit">✎</a>
+          <form action="{{ url_for('todos.delete', task_id=task.id) }}" method="post"
+                onsubmit="return confirm('Delete this task?');" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="icon-btn icon-danger" title="Delete">🗑</button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if stats.done > 0 %}
+    <form action="{{ url_for('todos.clear_completed') }}" method="post" class="clear-row"
+          onsubmit="return confirm('Permanently delete all completed tasks?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-ghost btn-sm">Clear {{ stats.done }} completed</button>
+    </form>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    {% if filters.q or filters.priority or filters.category or filters.status != 'all' %}
+      <p>No tasks match your filters.</p>
+      <a class="btn btn-ghost" href="{{ url_for('todos.index') }}">Clear filters</a>
+    {% else %}
+      <p class="empty-emoji">🎉</p>
+      <p>No tasks yet. Enjoy the calm — or add your first one.</p>
+      <a class="btn btn-primary" href="{{ url_for('todos.create') }}">+ New task</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

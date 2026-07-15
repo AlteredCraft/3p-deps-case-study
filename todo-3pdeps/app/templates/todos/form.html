@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="form-card">
+  <h1>{{ title }}</h1>
+
+  <form method="post" novalidate>
+    {{ form.csrf_token }}
+
+    <div class="field">
+      {{ form.title.label }}
+      {{ form.title(class="input", autofocus=true, placeholder="What needs doing?") }}
+      {% for error in form.title.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        {{ form.priority.label }}
+        {{ form.priority(class="input select") }}
+        {% for error in form.priority.errors %}<span class="error">{{ error }}</span>{% endfor %}
+      </div>
+      <div class="field">
+        {{ form.due_date.label }}
+        {{ form.due_date(class="input", type="date") }}
+        {% for error in form.due_date.errors %}<span class="error">{{ error }}</span>{% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      {{ form.category.label }}
+      {{ form.category(class="input", placeholder="e.g. Work, Home, Errands") }}
+      {% for error in form.category.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+
+    <div class="field">
+      {{ form.notes.label }}
+      {{ form.notes(class="input textarea", rows="4", placeholder="Extra details (optional)") }}
+      {% for error in form.notes.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </div>
+
+    <div class="form-actions">
+      {{ form.submit(class="btn btn-primary") }}
+      <a class="btn btn-ghost" href="{{ url_for('todos.index') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

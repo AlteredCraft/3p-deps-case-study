@@ -1,103 +1,41 @@
-# Todo — Flask + SQLite + Login
+# todo-deps — an experiment in limiting third-party dependencies
 
-A full-featured multi-user todo web app built with Flask, SQLite, and
-Flask-Login. Each user has a private, isolated list of tasks with priorities,
-categories, due dates, notes, search, filtering, and sorting.
+This repository backs an [AlteredCraft](https://alteredcraft.com) article investigating
+how AI changes the economics of third-party dependencies (3PDeps). When code was
+expensive to write, pulling in a general-purpose library was usually the rational
+trade. When AI can produce a precise, minimal implementation on demand, that trade
+inverts for many dependencies — though not all (security-sensitive code stays with
+the experts).
 
-## Features
+The vehicle is a full-featured Flask + SQLite + login todo app, kept in two variants
+so the trade-off can be measured directly:
 
-- **Accounts & auth** — register, log in (by username *or* email), "remember me",
-  log out. Passwords are hashed with Werkzeug (never stored in plain text).
-- **Per-user isolation** — every task is scoped to its owner; one user can never
-  see or modify another user's tasks.
-- **Tasks** — create, edit, delete, and toggle complete/incomplete.
-- **Organize** — priority (high / medium / low), free-text categories, due dates
-  (with overdue highlighting), and notes.
-- **Find** — search by title/notes, filter by status / priority / category, and
-  sort by newest, due date, priority, or title.
-- **Bulk** — one-click "clear completed".
-- **Secure by default** — CSRF protection on every form (Flask-WTF), hardened
-  session cookies, open-redirect-safe `next` handling.
-- **Polished UI** — responsive, with automatic light/dark mode.
+| Directory | What it is |
+| --- | --- |
+| [`todo-3pdeps/`](todo-3pdeps/) | The baseline — conventional Python web stack (Flask, SQLAlchemy, Flask-Login, Flask-WTF, WTForms, email-validator). |
+| [`todo-3pdeps-limited/`](todo-3pdeps-limited/) | A copy whose heavy dependencies are progressively replaced with purpose-built code, keeping the same behavior. |
+| [`research/`](research/notes.md) | The article premise, cloc dependency baselines, and the testing strategy. |
 
-## Tech stack
+Both variants are **independent `uv` projects** (each with its own `pyproject.toml`,
+lockfile, and virtualenv) so their dependency sets can diverge. They start behavior-
+identical and share the exact same test suite — the contract that proves a dependency
+removal preserved behavior.
 
-| Concern         | Choice                        |
-| --------------- | ----------------------------- |
-| Web framework   | Flask 3 (application factory) |
-| Database        | SQLite via Flask-SQLAlchemy 3 (SQLAlchemy 2.0 models) |
-| Auth/sessions   | Flask-Login                   |
-| Forms/CSRF      | Flask-WTF / WTForms           |
-| Dependency mgmt | uv                            |
-
-## Getting started
-
-Requirements: [uv](https://docs.astral.sh/uv/).
+## Running a variant
 
 ```bash
-# 1. Install dependencies (creates a .venv automatically)
+cd todo-3pdeps           # or todo-3pdeps-limited
 uv sync
-
-# 2. A .env with a generated SECRET_KEY is already present. If it's missing,
-#    create one:
-echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" > .env
-
-# 3. Run the app
-uv run python run.py
+uv run run.py     # http://127.0.0.1:5000
+uv run pytest            # 57 tests
 ```
 
-Then open http://127.0.0.1:5000 and register an account.
+Each variant needs a `SECRET_KEY` (see its `.env.example`). See the variant's own
+`README.md` for full details, configuration, and production notes.
 
-The SQLite database is created automatically at `instance/todo.sqlite` on first
-run.
+## Measuring the trade-off
 
-## Configuration
-
-Configuration is read from the environment (see `.env.example`):
-
-| Variable       | Required | Default                          | Purpose                       |
-| -------------- | -------- | -------------------------------- | ----------------------------- |
-| `SECRET_KEY`   | **yes**  | — (fails fast if missing)        | Signs sessions / CSRF tokens. |
-| `DATABASE_URL` | no       | `sqlite:///instance/todo.sqlite` | SQLAlchemy database URL.       |
-| `FLASK_ENV`    | no       | —                                | Set to `production` to require secure (HTTPS-only) cookies. |
-
-`SECRET_KEY` has no insecure fallback — a missing value stops startup with a
-clear message rather than silently using a guessable default.
-
-## Running the tests
-
-```bash
-uv run pytest
-```
-
-Covers auth (registration validation, login, hashing), full task CRUD,
-per-user authorization isolation, filtering/search, and sorting.
-
-## Project layout
-
-```
-app/
-  __init__.py     # application factory, CLI, error handlers
-  config.py       # environment-driven config (fails fast on missing secrets)
-  extensions.py   # db, login_manager, csrf (unbound; init_app in factory)
-  models.py       # User and Task models + user loader
-  forms.py        # WTForms with validation
-  auth.py         # register / login / logout blueprint
-  todos.py        # task CRUD + filtering blueprint
-  templates/      # Jinja2 templates
-  static/css/     # stylesheet
-run.py            # dev entry point
-tests/            # pytest suite
-```
-
-## Production notes
-
-This ships with Flask's development server for convenience. For production,
-serve the app factory with a WSGI server, e.g.:
-
-```bash
-uv add gunicorn
-uv run gunicorn "app:create_app()"
-```
-
-and set `FLASK_ENV=production` plus a strong `SECRET_KEY` in the environment.
+The premise is quantified with `cloc`. See [`research/notes.md`](research/notes.md)
+for method and the production-scoped baseline (first-party vs. third-party
+shipping code). Re-running the same measurement against each variant is how we track
+how much dependency code each replacement sheds.

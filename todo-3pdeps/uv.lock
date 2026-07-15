@@ -360,7 +360,7 @@ wheels = [
 ]
 
 [[package]]
-name = "todo-deps"
+name = "todo-3pdeps"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

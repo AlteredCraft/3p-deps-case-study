@@ -1,7 +1,7 @@
 [project]
-name = "todo-deps"
+name = "todo-3pdeps"
 version = "0.1.0"
-description = "Multi-user todo web app built with Flask, SQLite, and Flask-Login"
+description = "Todo web app — full third-party dependency stack (Flask, SQLAlchemy, Flask-Login, Flask-WTF)"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
