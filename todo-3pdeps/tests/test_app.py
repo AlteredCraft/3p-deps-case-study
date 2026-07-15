@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-def test_init_db_cli_creates_tables(app):
+def test_init_db_cli_creates_tables(app, db_path):
     runner = app.test_cli_runner()
     result = runner.invoke(args=["init-db"])
     assert result.exit_code == 0
@@ -11,8 +11,7 @@ def test_init_db_cli_creates_tables(app):
     # Tables exist and are queryable (the schema our tests depend on).
     import sqlite3
 
-    db_file = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
-    con = sqlite3.connect(db_file)
+    con = sqlite3.connect(db_path)
     try:
         names = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     finally:
