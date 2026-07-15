@@ -67,6 +67,17 @@ Measured 2026-07-15 with `cloc 2.06`.
   (`pygments` ~100k LOC, `_pytest`, `pluggy`, `iniconfig`, `packaging`) never
   ship and are out of scope. (An earlier pass that counted the whole `.venv` at
   348,953 LOC is superseded; ~131k of that was dev tooling.)
+
+  > **Update (2026-07-15, post test-hardening):** after adding `pytest-cov` to
+  > the dev group, the dev/test toolchain now totals **142,788 LOC** (the +11,948
+  > is almost entirely `coverage` 11,297 + `pytest_cov` 651). This is dev-only and
+  > does **not** touch the prod figure: a re-measured `--no-dev` environment still
+  > reports exactly **217,493 LOC**, and `uv tree --no-dev` contains no
+  > pytest/coverage/pygments. The dev toolchain is now ~66% the size of the entire
+  > prod dependency footprint — another reason to quote the prod-scoped number, not
+  > the raw `.venv`. First-party: `app/` (ships) is 964 LOC; `tests/` (dev-only) is
+  > 442 LOC — neither the growing suite nor the tooling moves the two headline
+  > numbers.
 - **Cruft filtered.** No `.pyc` / `__pycache__` (cloc treats these as non-source
   anyway; a fresh prod install has none), no `*.dist-info` metadata, no bundled
   package test suites.
