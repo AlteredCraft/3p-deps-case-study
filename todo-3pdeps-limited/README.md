@@ -25,7 +25,7 @@ categories, due dates, notes, search, filtering, and sorting.
 | Concern         | Choice                        |
 | --------------- | ----------------------------- |
 | Web framework   | Flask 3 (application factory) |
-| Database        | SQLite via Flask-SQLAlchemy 3 (SQLAlchemy 2.0 models) |
+| Database        | SQLite via stdlib `sqlite3` (purpose-built data layer) |
 | Auth/sessions   | Flask-Login                   |
 | Forms/CSRF      | Flask-WTF / WTForms           |
 | Dependency mgmt | uv                            |
@@ -58,7 +58,7 @@ Configuration is read from the environment (see `.env.example`):
 | Variable       | Required | Default                          | Purpose                       |
 | -------------- | -------- | -------------------------------- | ----------------------------- |
 | `SECRET_KEY`   | **yes**  | — (fails fast if missing)        | Signs sessions / CSRF tokens. |
-| `DATABASE_URL` | no       | `sqlite:///instance/todo.sqlite` | SQLAlchemy database URL.       |
+| `DATABASE_PATH` | no      | `instance/todo.sqlite`           | SQLite database file path.    |
 | `FLASK_ENV`    | no       | —                                | Set to `production` to require secure (HTTPS-only) cookies. |
 
 `SECRET_KEY` has no insecure fallback — a missing value stops startup with a
@@ -79,8 +79,9 @@ per-user authorization isolation, filtering/search, and sorting.
 app/
   __init__.py     # application factory, CLI, error handlers
   config.py       # environment-driven config (fails fast on missing secrets)
-  extensions.py   # db, login_manager, csrf (unbound; init_app in factory)
-  models.py       # User and Task models + user loader
+  extensions.py   # login_manager, csrf (unbound; init_app in factory)
+  db.py           # sqlite3 connection handling + schema DDL
+  models.py       # User/Task models, SQL queries, user loader
   forms.py        # WTForms with validation
   auth.py         # register / login / logout blueprint
   todos.py        # task CRUD + filtering blueprint

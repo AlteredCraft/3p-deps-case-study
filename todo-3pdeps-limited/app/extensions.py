@@ -7,16 +7,8 @@ multiple app instances (tests, CLI, etc.).
 from __future__ import annotations
 
 from flask_login import LoginManager
-from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
-from sqlalchemy.orm import DeclarativeBase
 
-
-class Base(DeclarativeBase):
-    """Declarative base for all models (SQLAlchemy 2.0 style)."""
-
-
-db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
 

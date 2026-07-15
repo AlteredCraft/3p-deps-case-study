@@ -12,11 +12,9 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import func
 
-from .extensions import db
 from .forms import LoginForm, RegistrationForm
-from .models import User
+from .models import create_user, find_user_by_login
 
 bp = Blueprint("auth", __name__)
 
@@ -36,10 +34,11 @@ def register():
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data.strip(), email=form.email.data.strip().lower())
-        user.set_password(form.password.data)
-        db.session.add(user)
-        db.session.commit()
+        user = create_user(
+            username=form.username.data.strip(),
+            email=form.email.data.strip().lower(),
+            password=form.password.data,
+        )
         login_user(user)
         flash("Welcome! Your account has been created.", "success")
         return redirect(url_for("todos.index"))
@@ -55,12 +54,7 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         identifier = form.username.data.strip()
-        user = db.session.scalar(
-            db.select(User).where(
-                (func.lower(User.username) == identifier.lower())
-                | (func.lower(User.email) == identifier.lower())
-            )
-        )
+        user = find_user_by_login(identifier)
         if user is None or not user.check_password(form.password.data):
             # Deliberately generic so we don't reveal which field was wrong.
             flash("Invalid username or password. Please try again.", "danger")

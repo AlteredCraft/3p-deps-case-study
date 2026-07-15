@@ -198,6 +198,33 @@ where (password hashing, cookie signing, HTML escaping) is keeping the
 expert-maintained library still the right call? Subsequent experiments replace
 dependencies one at a time and re-measure this table.
 
+## Removal log (todo-3pdeps-limited)
+
+Each step removes one dependency from `todo-3pdeps-limited/`, replacing it with
+purpose-built first-party code. A step only counts when the **unchanged 57-test
+suite is green** afterwards. Numbers come from re-running the baseline
+measurement (prod-only env, cruft filtered, `cloc app` for first-party).
+
+| Step | Dependency removed | 3P LOC shed | 1P LOC added | 3P total | 1P total (`app/`) |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 0 | — (baseline clone) | — | — | 217,493 | 964 |
+| 1 | sqlalchemy, flask-sqlalchemy (+ typing_extensions) | 137,490 | +100 | 80,003 | 1,064 |
+
+Step notes:
+
+1. **SQLAlchemy → stdlib `sqlite3`** (2026-07-15). New `app/db.py` (request-scoped
+   connection on `flask.g`, schema DDL matching what the ORM emitted) and a
+   rewritten `app/models.py` (dataclass models + ~15 purpose-built query
+   functions; priority sorting stays in SQL via a generated `CASE`). Routes,
+   templates, and forms untouched except for swapping query calls. The trade:
+   **137,490 LOC of ORM for 100 lines of first-party SQL** (~1,375:1).
+   `conftest.py` seam change: config key `SQLALCHEMY_DATABASE_URI` →
+   `DATABASE_PATH`; the SQLAlchemy engine-dispose teardown became unnecessary
+   (connections close per-request). One pre-existing coupling repaired in *both*
+   variants: `test_app.py` derived the DB file from the ORM's config key —
+   implementation-aware plumbing that belongs to the conftest seam; it now uses
+   the `db_path` fixture (assertions unchanged).
+
 ## Testing strategy (the refactor oracle)
 
 The test suite is a **black-box behavioral oracle**: its job is to prove a

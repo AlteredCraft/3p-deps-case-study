@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from sqlalchemy import func
 from wtforms import (
     BooleanField,
     DateField,
@@ -22,8 +21,7 @@ from wtforms.validators import (
     ValidationError,
 )
 
-from .extensions import db
-from .models import PRIORITIES, User
+from .models import PRIORITIES, email_exists, username_exists
 
 
 class RegistrationForm(FlaskForm):
@@ -49,17 +47,11 @@ class RegistrationForm(FlaskForm):
     submit = SubmitField("Create account")
 
     def validate_username(self, field: StringField) -> None:
-        existing = db.session.scalar(
-            db.select(User).where(func.lower(User.username) == field.data.lower())
-        )
-        if existing:
+        if username_exists(field.data):
             raise ValidationError("That username is already taken.")
 
     def validate_email(self, field: StringField) -> None:
-        existing = db.session.scalar(
-            db.select(User).where(func.lower(User.email) == field.data.lower())
-        )
-        if existing:
+        if email_exists(field.data):
             raise ValidationError("An account with that email already exists.")
 
 

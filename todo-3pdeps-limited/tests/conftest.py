@@ -2,9 +2,10 @@
 
 The test *bodies* are deliberately implementation-agnostic: they drive the app
 through its HTTP interface and, when they must inspect persisted state, query the
-SQLite file with the stdlib ``sqlite3`` module — never the ORM. That is what lets
-the same suite validate the app before *and* after we swap out third-party
-dependencies (SQLAlchemy, Flask-WTF, WTForms, Flask-Login, email-validator).
+SQLite file with the stdlib ``sqlite3`` module — never the app's data layer. That
+is what lets the same suite validate the app before *and* after we swap out
+third-party dependencies (SQLAlchemy — now removed — Flask-WTF, WTForms,
+Flask-Login, email-validator).
 
 Only this conftest is implementation-aware. It is the thin adapter between the
 tests and whatever backend is currently wired up; when a dependency is replaced,
@@ -48,31 +49,16 @@ def _build_app(database_path, *, csrf):
         TESTING = True
         WTF_CSRF_ENABLED = csrf
         SECRET_KEY = "test-secret-key"
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{database_path}"
+        DATABASE_PATH = database_path
 
     return create_app(_TestConfig)
 
 
-def _dispose(app):
-    """Best-effort close of pooled DB connections so temp files unlink cleanly.
-
-    Implementation-specific (SQLAlchemy today); guarded so it becomes a no-op
-    once the ORM is gone.
-    """
-    try:
-        from app.extensions import db
-
-        with app.app_context():
-            db.engine.dispose()
-    except Exception:
-        pass
-
-
 @pytest.fixture
 def app(db_path):
-    app = _build_app(db_path, csrf=False)
-    yield app
-    _dispose(app)
+    # DB connections are request-scoped (opened on flask.g, closed on
+    # app-context teardown), so there is nothing pooled to dispose of.
+    return _build_app(db_path, csrf=False)
 
 
 @pytest.fixture
@@ -83,9 +69,7 @@ def client(app):
 @pytest.fixture
 def csrf_app(db_path):
     """App with CSRF protection ON, to exercise the CSRF contract directly."""
-    app = _build_app(db_path, csrf=True)
-    yield app
-    _dispose(app)
+    return _build_app(db_path, csrf=True)
 
 
 @pytest.fixture

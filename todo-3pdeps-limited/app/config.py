@@ -33,10 +33,7 @@ class Config:
     SECRET_KEY = _require("SECRET_KEY")
 
     # Default to a SQLite database stored in the instance folder.
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{INSTANCE_DIR / 'todo.sqlite'}"
-    )
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    DATABASE_PATH = os.environ.get("DATABASE_PATH", str(INSTANCE_DIR / "todo.sqlite"))
 
     # Session / cookie hardening.
     SESSION_COOKIE_HTTPONLY = True

@@ -4,8 +4,9 @@ from __future__ import annotations
 import click
 from flask import Flask
 
+from . import db
 from .config import INSTANCE_DIR, Config
-from .extensions import csrf, db, login_manager
+from .extensions import csrf, login_manager
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -20,7 +21,7 @@ def create_app(config_class: type = Config) -> Flask:
     login_manager.init_app(app)
     csrf.init_app(app)
 
-    # Import models so they are registered before create_all(), and
+    # Import models so the Flask-Login user loader is registered, and
     # register blueprints.
     from . import models  # noqa: F401
     from .auth import bp as auth_bp
