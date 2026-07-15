@@ -99,6 +99,9 @@ class EqualTo:
 _EMAIL_ATOM = r"[A-Za-z0-9!#$%&'*+\-/=?^_`{|}~]+"
 _EMAIL_LOCAL_RE = re.compile(rf"^{_EMAIL_ATOM}(\.{_EMAIL_ATOM})*$")
 _EMAIL_LABEL_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+# Like email-validator: every current TLD ends with a letter, so a domain
+# ending in a digit (an all-numeric or otherwise IP-like TLD) is rejected.
+_EMAIL_TLD_RE = re.compile(r"[A-Za-z]\Z")
 
 
 def is_valid_email(value: str) -> bool:
@@ -110,6 +113,9 @@ def is_valid_email(value: str) -> bool:
     labels = domain.split(".")
     # Like email-validator, require a dot (a TLD) after the @-sign.
     if len(labels) < 2:
+        return False
+    # ...and the TLD must end with a letter (rejects user@example.123).
+    if not _EMAIL_TLD_RE.search(domain):
         return False
     return all(_EMAIL_LABEL_RE.match(label) for label in labels)
 

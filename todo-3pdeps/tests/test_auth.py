@@ -37,12 +37,59 @@ def test_register_persists_user_with_hashed_password(client, db_path):
 @pytest.mark.parametrize(
     "bad_email",
     [
+        # no @, or nothing but the separator
         "plainaddress",
         "missing-at-sign.com",
+        "Abc.example.com",
+        "@",
+        # empty local part
         "@no-local-part.com",
+        "@b.com",
+        # empty domain
         "no-domain@",
+        "a@",
+        # whitespace anywhere
         "spaces in@example.com",
-        "user@localhost",              # no dot after the @-sign
+        "user name@example.com",
+        " user@example.com",
+        "user@example.com ",
+        "user@example. com",
+        # no dot after the @-sign (no TLD)
+        "user@localhost",
+        "user@example",
+        # multiple or trailing @
+        "user@@example.com",
+        "A@b@c@example.com",
+        "user@example.com@",
+        # misplaced dots in the local part
+        ".user@example.com",
+        "user.@example.com",
+        "us..er@example.com",
+        # misplaced dots in the domain
+        "user@.com",
+        "user@com.",
+        "user@.example.com",
+        "user@example..com",
+        "user@example.com.",
+        # misplaced hyphens in domain labels
+        "user@-example.com",
+        "user@example-.com",
+        "user@-.com",
+        # illegal characters in the domain
+        "user@exam ple.com",
+        "user@exam_ple.com",
+        "user@example_domain.com",
+        "user@example,com",
+        # illegal characters / bad quoting in the local part
+        "user(comment)@example.com",
+        'just"not"right@example.com',
+        # domain literal (bracketed IP) — not accepted by default
+        "user@[127.0.0.1]",
+        # the TLD must end with a letter (rejects all-numeric / IP-like TLDs)
+        "user@example.123",
+        "user@123.456",
+        "user@example.a1",
+        "user@example.co2",
     ],
 )
 def test_register_rejects_malformed_email(client, bad_email):
@@ -57,7 +104,54 @@ def test_register_rejects_malformed_email(client, bad_email):
     assert b"My tasks" not in resp.data
 
 
-@pytest.mark.parametrize("good_email", ["user@example.com", "First.Last@sub.example.co"])
+@pytest.mark.parametrize(
+    "good_email",
+    [
+        # canonical forms
+        "user@example.com",
+        "First.Last@sub.example.co",
+        "u@example.com",
+        "0@a.io",
+        # everyday local-part shapes
+        "user.name@example.com",
+        "user+tag@example.com",
+        "user_name@example.com",
+        "user-name@example.com",
+        "user123@example.com",
+        "9to5@work.example",
+        # unusual but RFC-legal atext in the local part
+        "user%test@example.com",
+        "user!def@example.com",
+        "user'name@example.com",
+        "x=y@example.com",
+        "user?q@example.com",
+        "user{brace}@example.com",
+        "user|pipe@example.com",
+        "user#hash@example.com",
+        "user$dollar@example.com",
+        "user&and@example.com",
+        "user*star@example.com",
+        "user^caret@example.com",
+        "user~tilde@example.com",
+        "customer/department=shipping@example.com",
+        "!def!xyz%abc@example.com",
+        # domain shapes
+        "user@example.co.uk",
+        "user@mail.example.com",
+        "user@my-domain.com",
+        "user@a.co",
+        "user@example.c",
+        "example@s.example",
+        "user@123.example.com",   # a numeric label is fine when it isn't the TLD
+        "user@example.1a",        # a TLD may contain digits, just not end with one
+        # case-insensitivity
+        "UPPER@EXAMPLE.COM",
+        "mixed.Case.Local@Example.COM",
+        # mixed separators, still valid
+        "a_b-c.d@example-host.com",
+        "disposable.style.email.with+symbol@example.com",
+    ],
+)
 def test_register_accepts_valid_email(client, good_email):
     resp = client.post(
         "/register",
