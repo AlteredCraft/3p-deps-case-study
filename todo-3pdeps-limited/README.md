@@ -16,7 +16,7 @@ categories, due dates, notes, search, filtering, and sorting.
 - **Find** — search by title/notes, filter by status / priority / category, and
   sort by newest, due date, priority, or title.
 - **Bulk** — one-click "clear completed".
-- **Secure by default** — CSRF protection on every form (Flask-WTF), hardened
+- **Secure by default** — CSRF protection on every form, hardened
   session cookies, open-redirect-safe `next` handling.
 - **Polished UI** — responsive, with automatic light/dark mode.
 
@@ -27,7 +27,7 @@ categories, due dates, notes, search, filtering, and sorting.
 | Web framework   | Flask 3 (application factory) |
 | Database        | SQLite via stdlib `sqlite3` (purpose-built data layer) |
 | Auth/sessions   | Flask-Login                   |
-| Forms/CSRF      | Flask-WTF / WTForms           |
+| Forms/CSRF      | WTForms + first-party CSRF (`app/csrf.py`) |
 | Dependency mgmt | uv                            |
 
 ## Getting started
@@ -81,8 +81,9 @@ app/
   config.py       # environment-driven config (fails fast on missing secrets)
   extensions.py   # login_manager, csrf (unbound; init_app in factory)
   db.py           # sqlite3 connection handling + schema DDL
+  csrf.py         # session-token CSRF protection
   models.py       # User/Task models, SQL queries, user loader
-  forms.py        # WTForms with validation
+  forms.py        # WTForms with validation + Flask glue
   auth.py         # register / login / logout blueprint
   todos.py        # task CRUD + filtering blueprint
   templates/      # Jinja2 templates

@@ -1,12 +1,14 @@
-"""Form definitions and validation (Flask-WTF / WTForms)."""
+"""Form definitions and validation (WTForms + first-party Flask glue)."""
 from __future__ import annotations
 
 import re
 
-from flask_wtf import FlaskForm
+from flask import request
+from markupsafe import Markup
 from wtforms import (
     BooleanField,
     DateField,
+    Form,
     PasswordField,
     SelectField,
     StringField,
@@ -22,7 +24,31 @@ from wtforms.validators import (
     ValidationError,
 )
 
+from .csrf import generate_csrf
 from .models import PRIORITIES, email_exists, username_exists
+
+
+class BaseForm(Form):
+    """WTForms ``Form`` + the Flask conveniences we used from FlaskForm.
+
+    Binds POST data from the current request, and renders the session CSRF
+    token as the hidden input the templates (and tests) expect. Token
+    *validation* is global — see :mod:`app.csrf`.
+    """
+
+    def __init__(self, obj=None, **kwargs) -> None:
+        formdata = request.form if request.method == "POST" else None
+        super().__init__(formdata=formdata, obj=obj, **kwargs)
+
+    def validate_on_submit(self) -> bool:
+        return request.method == "POST" and self.validate()
+
+    @property
+    def csrf_token(self) -> Markup:
+        return Markup(
+            f'<input id="csrf_token" name="csrf_token" type="hidden" value="{generate_csrf()}">'
+        )
+
 
 # Precise, format-only email validation (replaces email-validator, which
 # shipped an IDNA + DNS stack for deliverability checks we never used).
@@ -53,12 +79,12 @@ class EmailFormat:
     def __init__(self, message: str = "Invalid email address.") -> None:
         self.message = message
 
-    def __call__(self, form: FlaskForm, field: StringField) -> None:
+    def __call__(self, form: Form, field: StringField) -> None:
         if not is_valid_email(field.data or ""):
             raise ValidationError(self.message)
 
 
-class RegistrationForm(FlaskForm):
+class RegistrationForm(BaseForm):
     username = StringField(
         "Username",
         validators=[
@@ -89,14 +115,14 @@ class RegistrationForm(FlaskForm):
             raise ValidationError("An account with that email already exists.")
 
 
-class LoginForm(FlaskForm):
+class LoginForm(BaseForm):
     username = StringField("Username or email", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])
     remember = BooleanField("Remember me")
     submit = SubmitField("Log in")
 
 
-class TaskForm(FlaskForm):
+class TaskForm(BaseForm):
     title = StringField("Title", validators=[DataRequired(), Length(max=200)])
     notes = TextAreaField("Notes", validators=[Optional(), Length(max=2000)])
     category = StringField(

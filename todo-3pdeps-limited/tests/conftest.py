@@ -47,7 +47,7 @@ def db_path():
 def _build_app(database_path, *, csrf):
     class _TestConfig(Config):
         TESTING = True
-        WTF_CSRF_ENABLED = csrf
+        CSRF_ENABLED = csrf
         SECRET_KEY = "test-secret-key"
         DATABASE_PATH = database_path
 

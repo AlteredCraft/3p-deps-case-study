@@ -210,6 +210,7 @@ measurement (prod-only env, cruft filtered, `cloc app` for first-party).
 | 0 | — (baseline clone) | — | — | 217,493 | 964 |
 | 1 | sqlalchemy, flask-sqlalchemy (+ typing_extensions) | 137,490 | +100 | 80,003 | 1,064 |
 | 2 | email-validator (+ idna, dnspython) | 39,457 | +21 | 40,546 | 1,085 |
+| 3 | flask-wtf | 520 | +39 | 40,026 | 1,124 |
 
 Step notes:
 
@@ -233,6 +234,17 @@ Step notes:
    longer accepted — a feature this app never needed and no test pins.
    **39,457 LOC (17.8 % of the original footprint) for an email format check**
    — the clearest "more code than you need" datapoint. No conftest change.
+3. **Flask-WTF → first-party CSRF + form glue** (2026-07-15). New `app/csrf.py`
+   (~20 lines): random per-session token in the signed session cookie, echoed
+   via hidden input/header, enforced globally in `before_request`,
+   constant-time compare, 400 on mismatch — same contract the tests pin.
+   `FlaskForm` replaced by a small `BaseForm` (plain `wtforms.Form` + request
+   binding, `validate_on_submit()`, `csrf_token` hidden-input rendering).
+   `wtforms` becomes a direct dependency (was transitive). Conftest seam:
+   config key `WTF_CSRF_ENABLED` → `CSRF_ENABLED`. Note the security caveat:
+   we replaced the CSRF *plumbing* but kept the cryptographic primitives
+   (Flask's itsdangerous-signed session, `secrets`, `hmac.compare_digest`)
+   with the experts.
 
 ## Testing strategy (the refactor oracle)
 
