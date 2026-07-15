@@ -327,6 +327,71 @@ the 100 % floor produced two findings worth keeping:
    flask-login's own `datetime.utcnow()` calls in the baseline — dependency
    code ages too.)
 
+## The keep, argued: why Flask stays
+
+The experiment's stopping point is as important as its cuts. `flask` is the
+one declared dependency left in `todo-3pdeps-limited`, and the choice is not
+sentimental — Flask fails every criterion that justified the other removals,
+all at once.
+
+**The stopping rule** (distilled from the six removals): replace a dependency
+when (a) the app uses a *sliver* of a general-purpose engine, (b) the sliver's
+behavior can be pinned by black-box tests, and (c) the code is not parsing
+adversarial input or doing cryptography. Keep it otherwise.
+
+### 1. We use Flask broadly — the ratio collapses
+
+Every removal paid because the app exercised a fraction of the library:
+134k LOC of ORM for two tables and a dozen queries; 39k LOC of IDNA + DNS
+for a format check. That asymmetry is what made the average trade
+**~411 lines shed per first-party line added**. Flask is the opposite case:
+this app touches routing, blueprints, request/response objects, signed
+sessions, flash messages, config, error handlers, templating, the CLI, and
+the test client. Rewriting it wouldn't shed unused generality — it would
+re-implement functionality the app exercises on every request. The ratio
+collapses toward 1:1, with all of the new-code risk and none of the payoff.
+
+### 2. The remaining stack *is* the security keep-list
+
+"Flask" in the final measurement decomposes into its transitive core, and
+most of that is exactly what the caveat says to leave with the experts:
+
+| Package | LOC | Why it stays |
+| --- | ---: | --- |
+| werkzeug | 11,986 | Required anyway for `werkzeug.security` password hashing (the original KEEP), and it parses hostile HTTP input — headers, cookies, encodings. CVE territory where battle-testing has real value. |
+| jinja2 + markupsafe | 8,951 | Autoescaping is the app's XSS defense on every template. HTML escaping is on the caveat's own list. |
+| click | 6,673 | The `flask` CLI. Inert at request time. |
+| flask | 4,068 | The framework proper — 1.9 % of the *original* footprint. |
+| itsdangerous | 650 | Signs the session cookie. The first-party CSRF and remember-me modules deliberately **ride on** this signed session rather than reinventing it. |
+| blinker | 268 | Signals plumbing Flask requires. |
+
+The early observation held: *the framework glue was never the bloat; the
+engines were.* The 85 % cut came from removing engines, not platform.
+
+### 3. The test oracle depends on the boundary staying put
+
+All 65 black-box tests drive the app through **Flask's test client**. The
+HTTP boundary is the fixed point that made every removal provable. Replacing
+Flask would invalidate the harness itself — the riskiest rewrite in the
+project would be attempted with the least evidence. (A dependency you can
+only replace by discarding your oracle is a dependency you keep.)
+
+### 4. Flask is the practical floor anyway
+
+`werkzeug`, `jinja2`, `click`, `itsdangerous`, `markupsafe`, and `blinker`
+are Flask's own declared dependencies — they cannot be removed without
+forking Flask. Keeping Flask *is* keeping ~32.6k LOC; that is the platform's
+price of admission, the same way the Python interpreter and stdlib were
+scoped as first-party givens in the baseline measurement.
+
+### For the article
+
+The keep strengthens the thesis rather than weakening it: the method
+produced an 85 % reduction *and* a principled stopping point. AI-written
+replacement code is a tool with a domain of applicability — oversized
+general engines with test-pinnable slivers — not a mandate to rewrite the
+platform. "Limiting, not eliminating," demonstrated at both ends.
+
 ## Testing strategy (the refactor oracle)
 
 The test suite is a **black-box behavioral oracle**: its job is to prove a
