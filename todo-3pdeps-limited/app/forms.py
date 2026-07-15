@@ -1,6 +1,8 @@
 """Form definitions and validation (Flask-WTF / WTForms)."""
 from __future__ import annotations
 
+import re
+
 from flask_wtf import FlaskForm
 from wtforms import (
     BooleanField,
@@ -13,7 +15,6 @@ from wtforms import (
 )
 from wtforms.validators import (
     DataRequired,
-    Email,
     EqualTo,
     Length,
     Optional,
@@ -22,6 +23,39 @@ from wtforms.validators import (
 )
 
 from .models import PRIORITIES, email_exists, username_exists
+
+# Precise, format-only email validation (replaces email-validator, which
+# shipped an IDNA + DNS stack for deliverability checks we never used).
+# ASCII dot-atom local part, dot-separated alphanumeric/hyphen domain labels.
+_EMAIL_ATOM = r"[A-Za-z0-9!#$%&'*+\-/=?^_`{|}~]+"
+_EMAIL_LOCAL_RE = re.compile(rf"^{_EMAIL_ATOM}(\.{_EMAIL_ATOM})*$")
+_EMAIL_LABEL_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+
+
+def is_valid_email(value: str) -> bool:
+    local, sep, domain = value.rpartition("@")
+    if not sep or not local or not domain:
+        return False
+    if len(local) > 64 or len(domain) > 253:
+        return False
+    if not _EMAIL_LOCAL_RE.match(local):
+        return False
+    labels = domain.split(".")
+    # Like email-validator, require a dot (a TLD) after the @-sign.
+    if len(labels) < 2:
+        return False
+    return all(_EMAIL_LABEL_RE.match(label) for label in labels)
+
+
+class EmailFormat:
+    """WTForms-style validator wrapping :func:`is_valid_email`."""
+
+    def __init__(self, message: str = "Invalid email address.") -> None:
+        self.message = message
+
+    def __call__(self, form: FlaskForm, field: StringField) -> None:
+        if not is_valid_email(field.data or ""):
+            raise ValidationError(self.message)
 
 
 class RegistrationForm(FlaskForm):
@@ -36,7 +70,7 @@ class RegistrationForm(FlaskForm):
             ),
         ],
     )
-    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=120)])
+    email = StringField("Email", validators=[DataRequired(), EmailFormat(), Length(max=120)])
     password = PasswordField(
         "Password", validators=[DataRequired(), Length(min=8, max=128)]
     )

@@ -209,6 +209,7 @@ measurement (prod-only env, cruft filtered, `cloc app` for first-party).
 | ---: | --- | ---: | ---: | ---: | ---: |
 | 0 | — (baseline clone) | — | — | 217,493 | 964 |
 | 1 | sqlalchemy, flask-sqlalchemy (+ typing_extensions) | 137,490 | +100 | 80,003 | 1,064 |
+| 2 | email-validator (+ idna, dnspython) | 39,457 | +21 | 40,546 | 1,085 |
 
 Step notes:
 
@@ -224,6 +225,14 @@ Step notes:
    variants: `test_app.py` derived the DB file from the ORM's config key —
    implementation-aware plumbing that belongs to the conftest seam; it now uses
    the `db_path` fixture (assertions unchanged).
+2. **email-validator → 21-line format check** (2026-07-15). A precise,
+   format-only validator in `app/forms.py` (ASCII dot-atom local part,
+   dot-separated domain labels, dot required after the `@` — matching the
+   library's syntax-mode behavior; deliverability DNS checks were never used).
+   Deliberate narrowing: internationalized (SMTPUTF8/IDN) addresses are no
+   longer accepted — a feature this app never needed and no test pins.
+   **39,457 LOC (17.8 % of the original footprint) for an email format check**
+   — the clearest "more code than you need" datapoint. No conftest change.
 
 ## Testing strategy (the refactor oracle)
 
