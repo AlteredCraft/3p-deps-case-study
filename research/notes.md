@@ -36,6 +36,129 @@ and where battle-tested, widely-audited libraries carry value that "precise but
 freshly written" code does not. The goal is *limiting* 3PDeps where the tradeoff
 no longer pays, **not** eliminating them dogmatically.
 
+## Backing research: the industry picture
+
+*Compiled 2026-07-15 from a multi-source deep-research pass (22 sources; 25
+claims put through 3-vote adversarial verification, 22 confirmed). This is the
+general, industry-wide evidence that backs the article's narrative arc —
+distinct from this repo's own case-study numbers below, which are our hands-on
+proof. Confidence markers: **✓** = confirmed by independent verification;
+**○** = single source (blog/forum), directionally useful only.*
+
+### The evolution (why we stopped noticing them)
+
+- **✓ Code-sharing is the original Unix culture, not a modern habit.** OS
+  components, libraries and utilities "were passed around as source code"; when
+  that openness was disrupted after 1984 Unix "lost its initial momentum," until
+  GNU + Linux revived open source a decade later. *(ESR, The Art of Unix
+  Programming.)* Package registries just industrialized an instinct as old as the
+  field.
+- **○ Language registries then arrived in a ~20-year cascade** — CPAN (1995),
+  Maven (2002), PyPI (2003), RubyGems (2004), npm (2010), Cargo (2015).
+  *(nesbitt.io — dates widely repeated, but this claim's verification errored;
+  treat as approximate. A separate "package managers began in 1993" claim was
+  refuted 0-3 and dropped.)*
+
+### Why borrow-vs-build became the default
+
+- **✓ Reuse is economically productive at the macro scale:** sharing generates
+  "increasing returns... crucial for economic growth" — the division-of-labor
+  case for not re-solving solved problems. *(MPRA working paper.)*
+- **✓ For hard-to-get-right code, borrowing is the *correct* call, not laziness.**
+  The literature is titled *"You Really Shouldn't Roll Your Own Crypto"*; the
+  reason is social, not clever — a scheme needs "a community... to cross-reference,
+  test and analyze" it, often over years. *(arXiv 2107.04940; InfoSec Institute.)*
+  A contrarian "the maxim is unsound" piece was **refuted 0-2** — the maxim held
+  under scrutiny. **○** The same battle-testing logic extends to parsing/date/
+  timezone code, which has "been exposed to all the edge cases" a fresh
+  implementation hasn't. *(HN thread.)* → This is the empirical backing for our
+  caveat: keep the experts for crypto/security and gnarly-edge-case parsing.
+
+### The issues with that default
+
+- **✓ Bloat is real and mostly unused code:** 75.1% of Maven dependency
+  relationships are bloated (packaged, not needed to build/run); in npm, 50.7% of
+  runtime deps are removable without breaking a test — a median **44.8% cut** to
+  the installed tree. *(Springer EMSE; arXiv 2405.17939.)*
+- **✓ The weight is transitive and invisible:** bloat is 14.9% of *direct* deps
+  vs **51.3% of indirect** ones. The average npm package's direct deps rose only
+  1.3→2.8 (2011–2018) while its transitive deps ballooned to **~80**. Installing
+  one average package = implicit trust in **~79 packages and ~39 maintainers**;
+  up to 40% of npm packages depend on code with a known vulnerability. *(arXiv
+  1902.09217, 2405.17939.)*
+- **✓ Ecosystem design sets the blast radius — a 77× spread** in amplification
+  (transitive:direct): Maven 24.70×, Go 4.48×, npm 4.32×, CocoaPods 0.32×. One
+  Maven project declaring 8 direct deps resolved to a 127-package tree. *(arXiv
+  2512.14739.)*
+- **✓ Fragility and supply-chain risk are the tail costs:** removing the ~11-line
+  `left-pad` package broke **>5,000 transitive dependents (>2% of npm)**,
+  cascading into Babel/Webpack/React. *(Wikipedia; arXiv 1710.04936.)* Malicious
+  packages are surging — **16,279 new ones in Q2 2025 alone** (>845k cumulative,
+  +188% YoY) — and the worst incidents (log4j, xz) cluster on the *most popular*
+  deps: popularity concentrates risk. *(Sonatype; Trail of Bits.)*
+
+### How AI shifts the balance (newest, least-settled — ○ throughout)
+
+- **○ AI collapses build economics:** "development time shrinks from months to
+  minutes, and the cost of code drops to near zero," reversing a build-vs-buy
+  default that only favored buying because building was slow and expensive.
+  *(joereis.substack.com; case.edu.)* When a dependency's value was mostly
+  amortized keystrokes (the `left-pad` tier), the break-even moves toward building.
+- **The counterweights to keep the piece honest** (so "code is cheap" isn't
+  oversold): **○** AI is unreliable at the dependency decision itself — **27.8%
+  of 36,780** AI-generated dependency-upgrade suggestions pointed to non-existent,
+  deprecated, or unsafe versions *(Sonatype)*; a library's real asset was never
+  the LOC but the *accumulated adversarial exposure*, which AI regenerates the
+  code but not the years of battle-testing (follows from the crypto findings); and
+  maintenance doesn't vanish, it **relocates to you** — "cheap to write" ≠ "cheap
+  to own."
+
+### The through-line for the piece
+
+The sharpest framing: **the dependency you evaluated was never the problem** —
+75% (Maven) / 50% (npm) of what ships is bloat you never chose and never audited.
+AI's real leverage isn't a blanket "write it, don't import it"; it's shrinking
+the amortized-effort case for the `left-pad` tier, while the verified evidence
+draws a hard line at the crypto/security tier — exactly where this case study
+stops cutting and keeps the experts.
+
+### Sources
+
+*22 fetched, grouped by quality tier. "Primary" = peer-reviewed papers or
+first-hand reports; "secondary" = encyclopedic/institutional; "blog/forum" =
+single-author opinion (the `○` claims above). Listed last: sources that
+contributed no surviving claim, kept for transparency.*
+
+**Primary / peer-reviewed**
+- MPRA — *Open Source Software and Economic Growth: A Classical Division of Labor Perspective* — https://mpra.ub.uni-muenchen.de/3849/
+- *You Really Shouldn't Roll Your Own Crypto* (arXiv 2107.04940) — https://ar5iv.labs.arxiv.org/html/2107.04940
+- *A comprehensive study of bloated dependencies in the Maven ecosystem* (Empirical Software Engineering) — https://link.springer.com/article/10.1007/s10664-020-09914-8
+- *Runtime dependency bloat in npm* (arXiv 2405.17939) — https://arxiv.org/html/2405.17939v1
+- *Dependency amplification across 10 ecosystems* (arXiv 2512.14739) — https://arxiv.org/pdf/2512.14739
+- *Small World with High Risks: npm trust surface* (arXiv 1902.09217, USENIX Security 2019) — https://arxiv.org/pdf/1902.09217
+- *Vulnerability propagation via transitive dependencies* (arXiv 1710.04936) — https://arxiv.org/pdf/1710.04936
+- Trail of Bits — *Supply-chain attacks are exploiting our assumptions* — https://blog.trailofbits.com/2025/09/24/supply-chain-attacks-are-exploiting-our-assumptions/
+
+**Secondary (encyclopedic / institutional)**
+- Eric S. Raymond — *The Art of Unix Programming*, ch. 16 — http://www.catb.org/~esr/writings/taoup/html/ch16s03.html
+- InfoSec Institute — *The dangers of rolling your own encryption* — https://www.infosecinstitute.com/resources/cryptography/the-dangers-of-rolling-your-own-encryption/
+- Wikipedia — *npm left-pad incident* — https://en.wikipedia.org/wiki/Npm_left-pad_incident
+- Sonatype — *Vulnerability timeline* (malicious-package counts, log4j/xz) — https://www.sonatype.com/resources/vulnerability-timeline
+
+**Blog / forum (`○` — unverified, single-author)**
+- Andrew Nesbitt — *Package Manager Timeline* (registry dates) — https://nesbitt.io/2025/11/15/package-manager-timeline.html
+- Hacker News — date/time parsing "borrow it" thread — https://news.ycombinator.com/item?id=44685875
+- Paolo Mainardi — *Point of no return on managing software dependencies* — https://www.paolomainardi.com/posts/point-of-no-return-on-managing-software-dependencies/
+- David Haney — *NPM & left-pad: Have We Forgotten How To Program?* — https://www.davidhaney.io/npm-left-pad-have-we-forgotten-how-to-program/
+- Joe Reis — *Eroding the Edges: (AI-Generated) Build vs. Buy* — https://joereis.substack.com/p/eroding-the-edges-ai-generated-build
+- Case Western / Weatherhead — *The new default: how AI quietly changed the build-vs-buy calculus* — https://case.edu/weatherhead/xlab/about/news/new-default-how-ai-quietly-changed-build-vs-buy-calculus
+- Sonatype — *When AI writes code, who governs the dependencies* (27.8% bad-suggestion stat) — https://www.sonatype.com/blog/when-ai-writes-code-who-governs-the-dependencies
+
+**No surviving claim (kept for transparency)**
+- Sonarsource — *A brief history of package management* (its "1993" origin claim was **refuted 0-3**) — https://www.sonarsource.com/blog/a-brief-history-of-package-management/
+- Samuel Lucas — *Debunking "don't roll your own crypto"* (its central claim was **refuted 0-2**) — https://samuellucas.com/2024/08/31/debunking-dont-roll-your-own-crypto.html
+- ACM DL 10.1145/2801081.2801087 — inaccessible (paywall/anti-bot); yielded no extractable claims — https://dl.acm.org/doi/10.1145/2801081.2801087
+
 ## The case study
 
 A full-featured Flask + SQLite + login todo web app (this repo) is the vehicle.

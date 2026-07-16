@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Findings — The shrinking case for third-party dependencies</title>
+<title>Findings: The shrinking case for third-party dependencies</title>
 <meta name="description" content="Case-study findings: replacing heavy Python dependencies with small, AI-written, purpose-built code cut a Flask todo app's third-party production footprint from 217,493 to 32,654 LOC (−85%), with a principled stopping point.">
 <style>
   :root {
@@ -175,8 +175,8 @@
   <h1>The shrinking case for third-party dependencies</h1>
   <p class="lede">One Flask todo app, built twice. Replacing its heavy dependencies with
     small, AI-written, purpose-built code cut the third-party production footprint from
-    <strong>217,493</strong> to <strong>32,654</strong> lines — an <strong>85%</strong> reduction —
-    while behavior stayed identical and the security-sensitive libraries stayed with the experts.</p>
+    <strong>217,493</strong> to <strong>32,654</strong> lines, an <strong>85%</strong> reduction.
+    Behavior stayed identical, and the security-sensitive libraries stayed with the experts.</p>
   <p class="sourceline">Measured 2026-07-15 with <code>cloc</code> 2.06, production scope
     (code that ships to prod; dev/test toolchain excluded). Full method, per-step diff trail, and
     the argued stopping point in <a href="https://github.com/AlteredCraft/3p-deps-case-study/blob/main/research/notes.md">research&nbsp;notes</a>.</p>
@@ -209,20 +209,20 @@
   <h2>The premise</h2>
   <h3>When code gets cheap, the build-vs-borrow trade flips</h3>
   <p>When code was expensive to write, pulling in a general-purpose library was usually the
-    rational choice — you got a working solution cheaply, and accepted the costs: unknown
+    rational choice. You got a working solution cheaply, and accepted the costs: unknown
     maintainers, far more code than you need, and a "good enough" fit to your <em>actual</em>
     problem. When AI can produce a precise, minimal implementation on demand, that trade inverts
     for many dependencies. You can own a small, purpose-built module you fully understand.</p>
   <p>The vehicle is a full-featured Flask&nbsp;+&nbsp;SQLite&nbsp;+&nbsp;login todo app, kept in
     <span class="hl">two behavior-identical variants</span>: a <em>baseline</em> on the conventional
     Python web stack, and a <em>limited</em> variant whose heavy dependencies were replaced
-    one at a time. A shared black-box test suite — byte-identical across both — is the oracle that
+    one at a time. A shared black-box test suite, byte-identical across both, is the oracle that
     proves each swap preserved behavior. The gap in their <code>cloc</code> figures is the finding.</p>
 
   <!-- ===== CHART A: headline ===== -->
   <h2>The headline</h2>
   <figure>
-    <p class="fig-title">Third-party production code — before and after</p>
+    <p class="fig-title">Third-party production code, before and after</p>
     <p class="fig-sub">Lines of code that ship to production, excluding the dev/test toolchain.
       The same app, the same tests passing, 85% less dependency code underneath it.</p>
     <svg viewBox="0 0 760 176" role="img" aria-labelledby="aT aD">
@@ -264,12 +264,12 @@
   <!-- ===== CHART C: composition ===== -->
   <h2>Where the weight was</h2>
   <h3>Two features carried ~79% of the footprint</h3>
-  <p><span class="hl">SQLAlchemy alone was 61.6% of all shipped dependency code</span> — 133,937 lines
+  <p><span class="hl">SQLAlchemy alone was 61.6% of all shipped dependency code</span>: 133,937 lines
     for an app with two tables and a dozen simple queries. Email validation cost another ~39k: the
     768-line <code>email-validator</code> drags in an entire IDNA + DNS stack (<code>idna</code> 19,389
     and <code>dnspython</code> 19,300) to format-check a string. Together, the ORM and the email stack
-    are <span class="hl">79% of everything that ships</span>. The framework glue was never the bloat —
-    the engines were.</p>
+    are <span class="hl">79% of everything that ships</span>. The framework glue was never the bloat.
+    The engines were.</p>
   <figure>
     <p class="fig-title">Baseline dependency footprint, by package</p>
     <p class="fig-sub">Production LOC per package (top&nbsp;8 shown; 9 smaller packages grouped).
@@ -329,7 +329,7 @@
     </svg>
     <div class="legend">
       <span><span class="swatch" style="background:var(--series-1)"></span>Removed in the experiment</span>
-      <span><span class="swatch" style="background:var(--series-2)"></span>Kept — ships in the limited variant</span>
+      <span><span class="swatch" style="background:var(--series-2)"></span>Kept: ships in the limited variant</span>
       <span><span class="swatch" style="background:var(--muted-fill)"></span>Other (9 pkgs, mixed)</span>
     </div>
   </figure>
@@ -337,33 +337,33 @@
   <!-- ===== CALLOUT: the gray line ===== -->
   <div class="callout">
     <span class="callout-label">The gray line</span>
-    <h3 class="callout-h">Email validation is the one cut that isn't a slam-dunk</h3>
+    <h3 class="callout-h">Email validation is the one cut that's a genuine judgment call</h3>
     <p>Email validation is notoriously hard, and it's the removal on this list where the trade is
-      a genuine judgment call rather than an obvious win. What is <span class="hl">literally legal
-      per the RFC grammar</span> is far broader than what most apps actually want to accept — the
+      a judgment call rather than an obvious win. What is <span class="hl">literally legal
+      per the RFC grammar</span> is far broader than what most apps actually want to accept. The
       accepted list in these tests already includes legal-but-exotic forms like
       <code>customer/department=shipping@example.com</code> and <code>user{brace}@example.com</code>.
       Replacing the library doesn't only shed ~39k lines; it hands you the job of deciding where
       that line falls.</p>
     <p>And that cuts both ways. The limited variant deliberately drew a <span class="hl">narrower</span>
-      line than the spec — internationalized (Unicode) addresses are no longer accepted, a
+      line than the spec: internationalized (Unicode) addresses are no longer accepted, a
       deliberate feature for an app that never needed them. But owning the boundary also means you
       can get its subtleties wrong: the purpose-built check quietly accepted all-numeric TLDs like
       <code>user@example.123</code> that the library rejects. The shared test suite caught the
-      divergence and we tightened the validator to match — the cost and the safety net in a single
-      example.</p>
+      divergence and we tightened the validator to match. That's the cost and the safety net in a
+      single example.</p>
     <p>So the honest takeaway is a fork, not a verdict. If you want <span class="hl">precise control</span>
-      over exactly which addresses your app accepts — and you keep a test oracle to hold the line —
+      over exactly which addresses your app accepts, and you keep a test oracle to hold the line,
       owning a small validator is now cheap and worth it. If you would <span class="hl">rather not
       carry that responsibility</span>, the expert-maintained library is still a perfectly good
-      answer. "Limiting, not eliminating" applies to the decision itself, not just the code.</p>
+      answer. "Limiting, not eliminating" applies to the decision itself, not only the code.</p>
   </div>
 
   <!-- ===== CHART B: the journey ===== -->
   <h2>The journey</h2>
   <h3>One commit per dependency, the suite green after each</h3>
   <p>Each removal replaced one library with purpose-built first-party code and landed as a single
-    git commit — a step only counted when the unchanged test suite passed afterward. The shape of the
+    git commit. A step only counted when the unchanged test suite passed afterward. The shape of the
     descent <em>is</em> the argument: <span class="hl">SQLAlchemy is the cliff</span> (−137,490), the
     email stack is the second step (−39,457), and everything after is a rounding-error tail. Diminishing
     returns made the stopping point obvious.</p>
@@ -430,17 +430,17 @@
 
   <!-- ===== CHART D: the keep ===== -->
   <h2>Where the cutting stopped</h2>
-  <h3>The 32,654 lines that stay — and why</h3>
+  <h3>The 32,654 lines that stay, and why</h3>
   <p>The stopping point matters as much as the cuts. The one declared dependency left is
     <code>flask</code>; everything still shipping is Flask's own transitive core. Most of it is exactly
     what the caveat says to leave with the experts: <span class="hl">password hashing</span>
     (<code>werkzeug.security</code>, required anyway), <span class="hl">autoescaping</span> as the XSS
     defense on every template, and <span class="hl">cookie signing</span> that the first-party CSRF and
     remember-me modules deliberately ride on rather than reinvent. AI-written replacement is a tool for
-    oversized general engines with test-pinnable slivers — not a mandate to rewrite the platform or the
+    oversized general engines with test-pinnable slivers, not a mandate to rewrite the platform or the
     cryptography.</p>
   <figure>
-    <p class="fig-title">What still ships — Flask's transitive core</p>
+    <p class="fig-title">What still ships: Flask's transitive core</p>
     <p class="fig-sub">The remaining 32,654 LOC, all pulled in by <code>flask</code> itself.
       Nothing here was rewritten.</p>
     <svg viewBox="0 0 760 320" role="img" aria-labelledby="dT dD">
@@ -496,10 +496,10 @@
 
   <!-- ===== TABLE ===== -->
   <h2>The record</h2>
-  <h3>Removal log — what each step shed and cost</h3>
+  <h3>Removal log: what each step shed and cost</h3>
   <p>Every number below comes from re-running the same production-scoped <code>cloc</code> measurement
     after each commit. <span class="hl">~411 lines of dependency code shed for every first-party line
-    added</span> — the whole trade in one ratio.</p>
+    added</span>. That's the whole trade in one ratio.</p>
   <div class="tbl-scroll">
     <table>
       <caption>Third-party (3P) and first-party (1P) production LOC in the limited variant, per step.</caption>
@@ -524,18 +524,18 @@
     </table>
   </div>
   <p class="self-note" style="color:var(--muted); margin-top:14px;">Step&nbsp;6 adds no shipping
-    first-party code — <code>python-dotenv</code> was only used by the dev entry point, and its 12-line
+    first-party code. <code>python-dotenv</code> was only used by the dev entry point, and its 12-line
     replacement lives in <code>run.py</code>, outside the <code>app/</code> count.</p>
 
   <footer>
     <p><strong>Method note.</strong> "Production scope" counts only code that ships: the dev/test
-      toolchain (<code>pytest</code>, <code>coverage</code>, and transitive deps — ~143k LOC) is
+      toolchain (<code>pytest</code>, <code>coverage</code>, and transitive deps, ~143k LOC) is
       excluded, and Python itself is treated as first-party platform. Both variants pass the same
       65-test black-box suite; the security-sensitive primitives (password hashing, session signing,
       token comparison) were deliberately <em>not</em> rewritten.</p>
     <p>Source, both variants, and full research notes:
       <a href="https://github.com/AlteredCraft/3p-deps-case-study">github.com/AlteredCraft/3p-deps-case-study</a>.
-      This findings page is itself zero-dependency — hand-authored HTML and inline SVG, no libraries,
+      This findings page is itself zero-dependency: hand-authored HTML and inline SVG, no libraries,
       no external requests.</p>
   </footer>
 
