@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Findings: The shrinking case for third-party dependencies</title>
-<meta name="description" content="Case-study findings: replacing heavy Python dependencies with small, AI-written, purpose-built code cut a Flask todo app's third-party production footprint from 217,493 to 32,654 LOC (−85%), with a principled stopping point.">
+<meta name="description" content="Case-study findings: replacing heavy Python dependencies with small, AI-written, purpose-built code cut a Flask todo app's third-party production footprint from 216,727 to 32,654 LOC (−85%), with a principled stopping point.">
 <style>
   :root {
     color-scheme: light;
@@ -13,14 +13,12 @@
     --text-primary:   #0b0b0b;
     --text-secondary: #52514e;
     --muted:       #898781;
-    --muted-fill:  #c7c6bf;
     --grid:        #e1e0d9;
     --baseline:    #c3c2b7;
     --series-1:    #2a78d6;   /* blue  — dependency code removed / shed */
     --series-2:    #008300;   /* green — code that remains in the shipped app */
     --good:        #006300;
     --border:      rgba(11,11,11,0.10);
-    --pill-bg:     rgba(0,131,0,0.12);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -30,14 +28,12 @@
       --text-primary:   #ffffff;
       --text-secondary: #c3c2b7;
       --muted:       #898781;
-      --muted-fill:  #4a4a46;
       --grid:        #2c2c2a;
       --baseline:    #383835;
       --series-1:    #3987e5;
       --series-2:    #008300;
       --good:        #0ca30c;
       --border:      rgba(255,255,255,0.12);
-      --pill-bg:     rgba(0,131,0,0.20);
     }
   }
   :root[data-theme="dark"] {
@@ -47,14 +43,12 @@
     --text-primary:   #ffffff;
     --text-secondary: #c3c2b7;
     --muted:       #898781;
-    --muted-fill:  #4a4a46;
     --grid:        #2c2c2a;
     --baseline:    #383835;
     --series-1:    #3987e5;
     --series-2:    #008300;
     --good:        #0ca30c;
     --border:      rgba(255,255,255,0.12);
-    --pill-bg:     rgba(0,131,0,0.20);
   }
 
   * { box-sizing: border-box; }
@@ -108,10 +102,9 @@
   figure .fig-title { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
   figure .fig-sub { font-size: 14px; color: var(--text-secondary); margin: 4px 0 14px; max-width: 70ch; }
   figure svg { width: 100%; height: auto; display: block; overflow: visible; }
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 12px 2px 0;
-            font-size: 13px; color: var(--text-secondary); }
-  .legend span { display: inline-flex; align-items: center; gap: 7px; }
-  .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 10px;
+               border: 1px solid var(--border); }
+  figcaption { font-size: 14px; color: var(--text-secondary); margin-top: 12px; max-width: 70ch; }
 
   /* ---- editorial callout (the gray-line aside) ---- */
   .callout { margin: 22px 0 0; background: rgba(217,144,42,0.09);
@@ -138,11 +131,7 @@
   .axis  { stroke: var(--baseline); stroke-width: 1; }
   .bar-blue  { fill: var(--series-1); }
   .bar-green { fill: var(--series-2); }
-  .bar-muted { fill: var(--muted-fill); }
   .mark:hover { opacity: .82; }
-
-  .keep-pill { display:inline-block; font-size: 11px; font-weight: 700; letter-spacing:.04em;
-     color: var(--good); background: var(--pill-bg); border-radius: 4px; padding: 1px 6px; }
 
   /* ---- table ---- */
   .tbl-scroll { overflow-x: auto; margin-top: 18px; -webkit-overflow-scrolling: touch; }
@@ -175,7 +164,7 @@
   <h1>The shrinking case for third-party dependencies</h1>
   <p class="lede">One Flask todo app, built twice. Replacing its heavy dependencies with
     small, AI-written, purpose-built code cut the third-party production footprint from
-    <strong>217,493</strong> to <strong>32,654</strong> lines, an <strong>85%</strong> reduction.
+    <strong>216,727</strong> to <strong>32,654</strong> lines, an <strong>85%</strong> reduction.
     Behavior stayed identical, and the security-sensitive libraries stayed with the experts.</p>
   <p class="sourceline">Measured 2026-07-15 with <code>cloc</code> 2.06, production scope
     (code that ships to prod; dev/test toolchain excluded). Full method, per-step diff trail, and
@@ -185,39 +174,48 @@
   <div class="stats">
     <div class="stat">
       <div class="lab">Third-party prod code, baseline</div>
-      <div class="val num">217,493</div>
-      <div class="sub">LOC across 657 files</div>
+      <div class="val num">216,727</div>
+      <div class="sub">LOC across 649 files</div>
     </div>
     <div class="stat">
       <div class="lab">After the removals</div>
       <div class="val num">32,654</div>
-      <div class="sub good">−184,839 &nbsp;(−85%)</div>
+      <div class="sub good">−184,073 &nbsp;(−85%)</div>
     </div>
     <div class="stat">
       <div class="lab">Shed per line we took on</div>
-      <div class="val num">411 : 1</div>
-      <div class="sub">184,839 shed / 450 first-party added</div>
+      <div class="val num">409 : 1</div>
+      <div class="sub">184,073 shed / 450 first-party added</div>
     </div>
     <div class="stat">
       <div class="lab">Declared runtime deps</div>
-      <div class="val num">6 → 1</div>
+      <div class="val num">5 → 1</div>
       <div class="sub">only <code>flask</code> remains</div>
     </div>
   </div>
 
   <!-- ===== PREMISE ===== -->
   <h2>The premise</h2>
-  <h3>When code gets cheap, the build-vs-borrow trade flips</h3>
+  <h3>When code gets cheap, build-vs-borrow invites reconsideration</h3>
   <p>When code was expensive to write, pulling in a general-purpose library was usually the
     rational choice. You got a working solution cheaply, and accepted the costs: unknown
     maintainers, far more code than you need, and a "good enough" fit to your <em>actual</em>
-    problem. When AI can produce a precise, minimal implementation on demand, that trade inverts
-    for many dependencies. You can own a small, purpose-built module you fully understand.</p>
+    problem. When AI can produce a precise, minimal implementation on demand, that math deserves
+    a fresh look, dependency by dependency. For some, owning a small, purpose-built module you
+    fully understand becomes the better deal. How many is a dial, not a doctrine — set by your
+    app, your team, and your risk profile.</p>
   <p>The vehicle is a full-featured Flask&nbsp;+&nbsp;SQLite&nbsp;+&nbsp;login todo app, kept in
     <span class="hl">two behavior-identical variants</span>: a <em>baseline</em> on the conventional
     Python web stack, and a <em>limited</em> variant whose heavy dependencies were replaced
     one at a time. A shared black-box test suite, byte-identical across both, is the oracle that
     proves each swap preserved behavior. The gap in their <code>cloc</code> figures is the finding.</p>
+  <figure>
+    <img src="img/todo-app.png" width="1490" height="1086"
+         alt="Screenshot of the todo app: a My Tasks page with search, All/Active/Done filters, priority and category dropdowns, sorting, a 'Task added' flash message, and one task tagged HIGH priority in a Podcasts category with a due date.">
+    <figcaption>The app in question: accounts, per-user task lists, priorities, categories, due
+      dates, search, filtering, sorting. Both variants serve this exact UI — the experiment only
+      counts if nothing here changes.</figcaption>
+  </figure>
 
   <!-- ===== CHART A: headline ===== -->
   <h2>The headline</h2>
@@ -227,7 +225,7 @@
       The same app, the same tests passing, 85% less dependency code underneath it.</p>
     <svg viewBox="0 0 760 176" role="img" aria-labelledby="aT aD">
       <title id="aT">Before and after third-party LOC</title>
-      <desc id="aD">Baseline 217,493 lines of code; limited variant 32,654 lines, an 85% reduction.</desc>
+      <desc id="aD">Baseline 216,727 lines of code; limited variant 32,654 lines, an 85% reduction.</desc>
       <!-- gridlines -->
       <g class="grid">
         <line x1="110" y1="48" x2="110" y2="140"/>
@@ -244,7 +242,7 @@
         <text x="560.6" y="156">200k</text>
       </g>
       <!-- baseline bar -->
-      <path class="bar-blue mark" d="M110,60 H596 Q600,60 600,64 V80 Q600,84 596,84 H110 Z"><title>Baseline: 217,493 LOC</title></path>
+      <path class="bar-blue mark" d="M110,60 H594.3 Q598.3,60 598.3,64 V80 Q598.3,84 594.3,84 H110 Z"><title>Baseline: 216,727 LOC</title></path>
       <!-- after bar -->
       <path class="bar-blue mark" d="M110,110 H179.6 Q183.6,110 183.6,114 V130 Q183.6,134 179.6,134 H110 Z"><title>Limited variant: 32,654 LOC</title></path>
       <!-- row labels -->
@@ -254,7 +252,7 @@
       </g>
       <!-- value labels -->
       <g class="t-primary num" font-size="14" font-weight="650">
-        <text x="608" y="76">217,493</text>
+        <text x="606" y="76">216,727</text>
         <text x="192" y="126">32,654</text>
       </g>
       <text x="270" y="126" class="t-muted" font-size="13">85% smaller footprint</text>
@@ -263,100 +261,212 @@
 
   <!-- ===== CHART C: composition ===== -->
   <h2>Where the weight was</h2>
-  <h3>Two features carried ~79% of the footprint</h3>
-  <p><span class="hl">SQLAlchemy alone was 61.6% of all shipped dependency code</span>: 133,937 lines
+  <h3>Two features carried ~80% of the footprint</h3>
+  <p><span class="hl">SQLAlchemy alone was 61.8% of all shipped dependency code</span>: 133,937 lines
     for an app with two tables and a dozen simple queries. Email validation cost another ~39k: the
     768-line <code>email-validator</code> drags in an entire IDNA + DNS stack (<code>idna</code> 19,389
     and <code>dnspython</code> 19,300) to format-check a string. Together, the ORM and the email stack
-    are <span class="hl">79% of everything that ships</span>. The framework glue was never the bloat.
+    are <span class="hl">80% of everything that ships</span>. The framework glue was never the bloat.
     The engines were.</p>
   <figure>
-    <p class="fig-title">Baseline dependency footprint, by package</p>
-    <p class="fig-sub">Production LOC per package (top&nbsp;8 shown; 9 smaller packages grouped).
-      Colored by what happened to each in the experiment.</p>
-    <svg viewBox="0 0 760 420" role="img" aria-labelledby="cT cD">
-      <title id="cT">Baseline dependency footprint by package</title>
-      <desc id="cD">SQLAlchemy 133,937 dominates, followed by idna 19,389 and dnspython 19,300. werkzeug 11,986 and other Flask-core packages are kept.</desc>
-      <g class="grid">
-        <line x1="155" y1="38" x2="155" y2="398"/>
-        <line x1="336" y1="38" x2="336" y2="398"/>
-        <line x1="517" y1="38" x2="517" y2="398"/>
+    <p class="fig-title">What five lines in pyproject.toml actually install</p>
+    <p class="fig-sub">Left: the dependency list as a developer sees it. Right: the 16 packages it
+      resolves to in production, sized by lines of code. Line thickness tracks each
+      declaration's share of the footprint.</p>
+    <svg viewBox="0 0 760 620" role="img" aria-labelledby="cT cD">
+      <title id="cT">What five lines in pyproject.toml actually install</title>
+      <desc id="cD">The five pyproject.toml entries resolve to 16 packages totaling 216,727 lines.
+        flask-sqlalchemy pulls in 137,490 lines, dominated by SQLAlchemy at 133,937 (61.8% of the
+        footprint); email-validator pulls in 39,457 including idna 19,389 and dnspython 19,300;
+        flask itself accounts for 32,596 across seven packages led by werkzeug 11,986;
+        flask-wtf pulls in 6,443 and flask-login 683.</desc>
+      <path d="M256,264.5 C280,264.5 278,42 296,42" fill="none" stroke="var(--series-1)" stroke-width="4.6" stroke-linecap="butt" opacity="0.4"/>
+      <path d="M256,283.5 C280,283.5 278,148 296,148" fill="none" stroke="var(--series-1)" stroke-width="3.8" stroke-linecap="butt" opacity="0.4"/>
+      <path d="M256,302.5 C280,302.5 278,342 296,342" fill="none" stroke="var(--series-1)" stroke-width="1.5" stroke-linecap="butt" opacity="0.4"/>
+      <path d="M256,321.5 C280,321.5 278,404 296,404" fill="none" stroke="var(--series-1)" stroke-width="16.0" stroke-linecap="butt" opacity="0.4"/>
+      <path d="M256,340.5 C280,340.5 278,510 296,510" fill="none" stroke="var(--series-1)" stroke-width="1.5" stroke-linecap="butt" opacity="0.4"/>
+      <text x="18" y="198" class="t-muted" font-size="11" font-weight="700" letter-spacing=".08em">WHAT YOU DECLARE</text>
+      <text x="300" y="20" class="t-muted" font-size="11" font-weight="700" letter-spacing=".08em">WHAT ACTUALLY INSTALLS</text>
+      <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+        <rect x="18" y="210" width="238" height="171" rx="10" fill="var(--page)" stroke="var(--grid)"/>
+        <text x="32" y="227" class="t-muted" font-size="10.5">pyproject.toml</text>
+        <line x1="18" y1="234" x2="256" y2="234" class="grid"/>
+        <text x="32" y="249" class="t-secondary" font-size="11.5">dependencies = [</text>
+        <text x="48" y="268" font-size="11.5"><tspan class="t-muted">"</tspan><tspan fill="var(--series-1)" font-weight="600">email-validator</tspan><tspan class="t-muted">>=2.3.0",</tspan></text>
+        <text x="48" y="287" font-size="11.5"><tspan class="t-muted">"</tspan><tspan fill="var(--series-1)" font-weight="600">flask</tspan><tspan class="t-muted">>=3.1.3",</tspan></text>
+        <text x="48" y="306" font-size="11.5"><tspan class="t-muted">"</tspan><tspan fill="var(--series-1)" font-weight="600">flask-login</tspan><tspan class="t-muted">>=0.6.3",</tspan></text>
+        <text x="48" y="325" font-size="11.5"><tspan class="t-muted">"</tspan><tspan fill="var(--series-1)" font-weight="600">flask-sqlalchemy</tspan><tspan class="t-muted">>=3.1.1",</tspan></text>
+        <text x="48" y="344" font-size="11.5"><tspan class="t-muted">"</tspan><tspan fill="var(--series-1)" font-weight="600">flask-wtf</tspan><tspan class="t-muted">>=1.3.0",</tspan></text>
+        <text x="32" y="363" class="t-secondary" font-size="11.5">]</text>
       </g>
-      <g class="t-muted num" font-size="11" text-anchor="middle">
-        <text x="155" y="412">0</text>
-        <text x="336" y="412">50,000</text>
-        <text x="517" y="412">100,000</text>
+      <line x1="226" y1="264.5" x2="252" y2="264.5" stroke="var(--series-1)" stroke-width="1.5" stroke-dasharray="0.1 5" stroke-linecap="round" opacity="0.55"/>
+      <circle cx="256" cy="264.5" r="3" fill="var(--series-1)"/>
+      <line x1="157" y1="283.5" x2="252" y2="283.5" stroke="var(--series-1)" stroke-width="1.5" stroke-dasharray="0.1 5" stroke-linecap="round" opacity="0.55"/>
+      <circle cx="256" cy="283.5" r="3" fill="var(--series-1)"/>
+      <line x1="198" y1="302.5" x2="252" y2="302.5" stroke="var(--series-1)" stroke-width="1.5" stroke-dasharray="0.1 5" stroke-linecap="round" opacity="0.55"/>
+      <circle cx="256" cy="302.5" r="3" fill="var(--series-1)"/>
+      <line x1="233" y1="321.5" x2="252" y2="321.5" stroke="var(--series-1)" stroke-width="1.5" stroke-dasharray="0.1 5" stroke-linecap="round" opacity="0.55"/>
+      <circle cx="256" cy="321.5" r="3" fill="var(--series-1)"/>
+      <line x1="184" y1="340.5" x2="252" y2="340.5" stroke="var(--series-1)" stroke-width="1.5" stroke-dasharray="0.1 5" stroke-linecap="round" opacity="0.55"/>
+      <circle cx="256" cy="340.5" r="3" fill="var(--series-1)"/>
+
+      <!-- email-validator -->
+      <text x="300" y="46" font-size="12"><tspan class="t-primary num" font-weight="650">39,457 LOC</tspan><tspan class="t-muted"> · 3 packages · 18.2%</tspan></text>
+      <line x1="306" y1="54" x2="306" y2="110" class="grid"/>
+      <g class="mark">
+        <title>idna — 19,389 LOC · internationalized domain names — 8.9% of the footprint, pulled in transitively</title>
+        <line x1="306" y1="66" x2="312" y2="66" class="grid"/>
+        <text x="318" y="70" class="t-secondary" font-size="12.5">idna</text>
+        <path class="bar-blue" d="M440,59 H465.0 Q469.0,59 469.0,63 V69 Q469.0,73 465.0,73 H440 Z"/>
+        <text x="477.0" y="70" class="t-primary num" font-size="12" font-weight="600">19,389</text>
       </g>
-      <!-- bars -->
-      <path class="bar-blue mark"  d="M155,45 H636 Q640,45 640,49 V61 Q640,65 636,65 H155 Z"><title>SQLAlchemy — 133,937 LOC (61.6%) · removed</title></path>
-      <path class="bar-blue mark"  d="M155,86 H221.2 Q225.2,86 225.2,90 V102 Q225.2,106 221.2,106 H155 Z"><title>idna — 19,389 LOC (8.9%) · removed (via email-validator)</title></path>
-      <path class="bar-blue mark"  d="M155,127 H220.9 Q224.9,127 224.9,131 V143 Q224.9,147 220.9,147 H155 Z"><title>dnspython — 19,300 LOC (8.9%) · removed (via email-validator)</title></path>
-      <path class="bar-green mark" d="M155,168 H194.4 Q198.4,168 198.4,172 V184 Q198.4,188 194.4,188 H155 Z"><title>werkzeug — 11,986 LOC (5.5%) · KEPT (password hashing; parses hostile HTTP)</title></path>
-      <path class="bar-green mark" d="M155,209 H182 Q186,209 186,213 V225 Q186,229 182,229 H155 Z"><title>jinja2 — 8,557 LOC (3.9%) · kept (templating + autoescape)</title></path>
-      <path class="bar-green mark" d="M155,250 H175.2 Q179.2,250 179.2,254 V266 Q179.2,270 175.2,270 H155 Z"><title>click — 6,673 LOC (3.1%) · kept (the flask CLI)</title></path>
-      <path class="bar-blue mark"  d="M155,291 H172.5 Q176.5,291 176.5,295 V307 Q176.5,311 172.5,311 H155 Z"><title>wtforms — 5,923 LOC (2.7%) · removed</title></path>
-      <path class="bar-green mark" d="M155,332 H165.7 Q169.7,332 169.7,336 V348 Q169.7,352 165.7,352 H155 Z"><title>flask — 4,068 LOC (1.9%) · kept (the framework)</title></path>
-      <path class="bar-muted mark" d="M155,373 H178.5 Q182.5,373 182.5,377 V389 Q182.5,393 178.5,393 H155 Z"><title>Other 9 packages — 7,602 LOC combined (mixed: some removed, some kept)</title></path>
-      <!-- name labels -->
-      <g class="t-secondary" font-size="13" text-anchor="end">
-        <text x="148" y="59">SQLAlchemy</text>
-        <text x="148" y="100">idna</text>
-        <text x="148" y="141">dnspython</text>
-        <text x="148" y="182">werkzeug</text>
-        <text x="148" y="223">jinja2</text>
-        <text x="148" y="264">click</text>
-        <text x="148" y="305">wtforms</text>
-        <text x="148" y="346">flask</text>
-        <text x="148" y="387">Other (9)</text>
+      <g class="mark">
+        <title>dnspython — 19,300 LOC · DNS toolkit for deliverability checks — 8.9%, pulled in transitively</title>
+        <line x1="306" y1="88" x2="312" y2="88" class="grid"/>
+        <text x="318" y="92" class="t-secondary" font-size="12.5">dnspython</text>
+        <path class="bar-blue" d="M440,81 H464.8 Q468.8,81 468.8,85 V91 Q468.8,95 464.8,95 H440 Z"/>
+        <text x="476.8" y="92" class="t-primary num" font-size="12" font-weight="600">19,300</text>
       </g>
-      <!-- value labels -->
-      <g class="t-primary num" font-size="12.5" font-weight="600">
-        <text x="648" y="59">133,937</text>
-        <text x="233" y="100">19,389</text>
-        <text x="233" y="141">19,300</text>
-        <text x="206" y="182">11,986</text>
-        <text x="194" y="223">8,557</text>
-        <text x="187" y="264">6,673</text>
-        <text x="184.5" y="305">5,923</text>
-        <text x="177.7" y="346">4,068</text>
-        <text x="190.5" y="387">7,602</text>
+      <g class="mark">
+        <title>email_validator — 768 LOC · the validator itself — 0.4%; the two packages above are its freight</title>
+        <line x1="306" y1="110" x2="312" y2="110" class="grid"/>
+        <text x="318" y="114" class="t-secondary" font-size="12.5">email_validator</text>
+        <rect class="bar-blue" x="440" y="103" width="2.0" height="14"/>
+        <text x="450.0" y="114" class="t-primary num" font-size="12" font-weight="600">768</text>
       </g>
-      <!-- KEEP tag on werkzeug, after the value label -->
-      <g transform="translate(266,172)">
-        <rect x="0" y="0" width="42" height="15" rx="4" fill="var(--pill-bg)"/>
-        <text x="21" y="11" text-anchor="middle" font-size="10" font-weight="700" fill="var(--good)">KEEP</text>
+
+      <!-- flask -->
+      <text x="300" y="152" font-size="12"><tspan class="t-primary num" font-weight="650">32,596 LOC</tspan><tspan class="t-muted"> · 7 packages · 15.0%</tspan></text>
+      <line x1="306" y1="160" x2="306" y2="304" class="grid"/>
+      <g class="mark">
+        <title>werkzeug — 11,986 LOC · WSGI utils + werkzeug.security password hashing — 5.5%</title>
+        <line x1="306" y1="172" x2="312" y2="172" class="grid"/>
+        <text x="318" y="176" class="t-secondary" font-size="12.5">werkzeug</text>
+        <path class="bar-blue" d="M440,165 H453.9 Q457.9,165 457.9,169 V175 Q457.9,179 453.9,179 H440 Z"/>
+        <text x="465.9" y="176" class="t-primary num" font-size="12" font-weight="600">11,986</text>
       </g>
+      <g class="mark">
+        <title>jinja2 — 8,557 LOC · templating; autoescape is the XSS defense — 3.9%</title>
+        <line x1="306" y1="194" x2="312" y2="194" class="grid"/>
+        <text x="318" y="198" class="t-secondary" font-size="12.5">jinja2</text>
+        <path class="bar-blue" d="M440,187 H448.8 Q452.8,187 452.8,191 V197 Q452.8,201 448.8,201 H440 Z"/>
+        <text x="460.8" y="198" class="t-primary num" font-size="12" font-weight="600">8,557</text>
+      </g>
+      <g class="mark">
+        <title>click — 6,673 LOC · the flask CLI — 3.1%</title>
+        <line x1="306" y1="216" x2="312" y2="216" class="grid"/>
+        <text x="318" y="220" class="t-secondary" font-size="12.5">click</text>
+        <path class="bar-blue" d="M440,209 H446.0 Q450.0,209 450.0,213 V219 Q450.0,223 446.0,223 H440 Z"/>
+        <text x="458.0" y="220" class="t-primary num" font-size="12" font-weight="600">6,673</text>
+      </g>
+      <g class="mark">
+        <title>flask — 4,068 LOC · the framework proper — 1.9%</title>
+        <line x1="306" y1="238" x2="312" y2="238" class="grid"/>
+        <text x="318" y="242" class="t-secondary" font-size="12.5">flask</text>
+        <rect class="bar-blue" x="440" y="231" width="6.1" height="14"/>
+        <text x="454.1" y="242" class="t-primary num" font-size="12" font-weight="600">4,068</text>
+      </g>
+      <g class="mark">
+        <title>itsdangerous — 650 LOC · signs the session cookie — 0.3%</title>
+        <line x1="306" y1="260" x2="312" y2="260" class="grid"/>
+        <text x="318" y="264" class="t-secondary" font-size="12.5">itsdangerous</text>
+        <rect class="bar-blue" x="440" y="253" width="2.0" height="14"/>
+        <text x="450.0" y="264" class="t-primary num" font-size="12" font-weight="600">650</text>
+      </g>
+      <g class="mark">
+        <title>markupsafe — 394 LOC · HTML escaping — 0.2%</title>
+        <line x1="306" y1="282" x2="312" y2="282" class="grid"/>
+        <text x="318" y="286" class="t-secondary" font-size="12.5">markupsafe</text>
+        <rect class="bar-blue" x="440" y="275" width="2.0" height="14"/>
+        <text x="450.0" y="286" class="t-primary num" font-size="12" font-weight="600">394</text>
+      </g>
+      <g class="mark">
+        <title>blinker — 268 LOC · signals — 0.1%</title>
+        <line x1="306" y1="304" x2="312" y2="304" class="grid"/>
+        <text x="318" y="308" class="t-secondary" font-size="12.5">blinker</text>
+        <rect class="bar-blue" x="440" y="297" width="2.0" height="14"/>
+        <text x="450.0" y="308" class="t-primary num" font-size="12" font-weight="600">268</text>
+      </g>
+
+      <!-- flask-login -->
+      <text x="300" y="346" font-size="12"><tspan class="t-primary num" font-weight="650">683 LOC</tspan><tspan class="t-muted"> · 1 package · 0.3%</tspan></text>
+      <g class="mark">
+        <title>flask_login — 683 LOC · session/auth management — 0.3%</title>
+        <text x="318" y="370" class="t-secondary" font-size="12.5">flask_login</text>
+        <rect class="bar-blue" x="440" y="359" width="2.0" height="14"/>
+        <text x="450.0" y="370" class="t-primary num" font-size="12" font-weight="600">683</text>
+      </g>
+
+      <!-- flask-sqlalchemy -->
+      <text x="300" y="408" font-size="12"><tspan class="t-primary num" font-weight="650">137,490 LOC</tspan><tspan class="t-muted"> · 3 packages · 63.4%</tspan></text>
+      <line x1="306" y1="416" x2="306" y2="472" class="grid"/>
+      <g class="mark">
+        <title>sqlalchemy — 133,937 LOC · ORM + Core — 61.8% of all shipped dependency code, for two tables and a dozen queries</title>
+        <line x1="306" y1="428" x2="312" y2="428" class="grid"/>
+        <text x="318" y="432" class="t-secondary" font-size="12.5">sqlalchemy</text>
+        <path class="bar-blue" d="M440,421 H636.0 Q640.0,421 640.0,425 V431 Q640.0,435 636.0,435 H440 Z"/>
+        <text x="648.0" y="432" class="t-primary num" font-size="12" font-weight="600">133,937</text>
+        <text x="448" y="431.5" font-size="10.5" font-weight="600" fill="#ffffff" opacity="0.95">61.8% of the whole footprint</text>
+      </g>
+      <g class="mark">
+        <title>typing_extensions — 2,549 LOC · back-ported typing — 1.2%, pulled in by SQLAlchemy</title>
+        <line x1="306" y1="450" x2="312" y2="450" class="grid"/>
+        <text x="318" y="454" class="t-secondary" font-size="12.5">typing_extensions</text>
+        <rect class="bar-blue" x="440" y="443" width="3.8" height="14"/>
+        <text x="451.8" y="454" class="t-primary num" font-size="12" font-weight="600">2,549</text>
+      </g>
+      <g class="mark">
+        <title>flask_sqlalchemy — 1,004 LOC · Flask ↔ SQLAlchemy glue — 0.5%</title>
+        <line x1="306" y1="472" x2="312" y2="472" class="grid"/>
+        <text x="318" y="476" class="t-secondary" font-size="12.5">flask_sqlalchemy</text>
+        <rect class="bar-blue" x="440" y="465" width="2.0" height="14"/>
+        <text x="450.0" y="476" class="t-primary num" font-size="12" font-weight="600">1,004</text>
+      </g>
+
+      <!-- flask-wtf -->
+      <text x="300" y="514" font-size="12"><tspan class="t-primary num" font-weight="650">6,443 LOC</tspan><tspan class="t-muted"> · 2 packages · 3.0%</tspan></text>
+      <line x1="306" y1="522" x2="306" y2="556" class="grid"/>
+      <g class="mark">
+        <title>wtforms — 5,923 LOC · form definitions + validation — 2.7%, pulled in transitively</title>
+        <line x1="306" y1="534" x2="312" y2="534" class="grid"/>
+        <text x="318" y="538" class="t-secondary" font-size="12.5">wtforms</text>
+        <path class="bar-blue" d="M440,527 H444.8 Q448.8,527 448.8,531 V537 Q448.8,541 444.8,541 H440 Z"/>
+        <text x="456.8" y="538" class="t-primary num" font-size="12" font-weight="600">5,923</text>
+      </g>
+      <g class="mark">
+        <title>flask_wtf — 520 LOC · CSRF + Flask/WTForms glue — 0.2%</title>
+        <line x1="306" y1="556" x2="312" y2="556" class="grid"/>
+        <text x="318" y="560" class="t-secondary" font-size="12.5">flask_wtf</text>
+        <rect class="bar-blue" x="440" y="549" width="2.0" height="14"/>
+        <text x="450.0" y="560" class="t-primary num" font-size="12" font-weight="600">520</text>
+      </g>
+
+      <line x1="18" y1="584" x2="740" y2="584" class="axis"/>
+      <text x="380" y="606" text-anchor="middle" class="t-secondary" font-size="12"><tspan font-weight="650" class="t-primary num">5</tspan> declared dependencies <tspan class="t-muted">→</tspan> <tspan font-weight="650" class="t-primary num">16</tspan> installed packages <tspan class="t-muted">→</tspan> <tspan font-weight="650" class="t-primary num">216,727</tspan> LOC shipping to production</text>
     </svg>
-    <div class="legend">
-      <span><span class="swatch" style="background:var(--series-1)"></span>Removed in the experiment</span>
-      <span><span class="swatch" style="background:var(--series-2)"></span>Kept: ships in the limited variant</span>
-      <span><span class="swatch" style="background:var(--muted-fill)"></span>Other (9 pkgs, mixed)</span>
-    </div>
+    <figcaption>Per-package LOC from the same production-scoped <code>cloc</code> run. The 16
+      packages sum to 216,669; 58 LOC of stray vendored files, attributable to no single
+      package, complete the 216,727 baseline.</figcaption>
   </figure>
 
   <!-- ===== CALLOUT: the gray line ===== -->
   <div class="callout">
     <span class="callout-label">The gray line</span>
     <h3 class="callout-h">Email validation is the one cut that's a genuine judgment call</h3>
-    <p>Email validation is notoriously hard, and it's the removal on this list where the trade is
-      a judgment call rather than an obvious win. What is <span class="hl">literally legal
-      per the RFC grammar</span> is far broader than what most apps actually want to accept. The
-      accepted list in these tests already includes legal-but-exotic forms like
-      <code>customer/department=shipping@example.com</code> and <code>user{brace}@example.com</code>.
-      Replacing the library doesn't only shed ~39k lines; it hands you the job of deciding where
-      that line falls.</p>
-    <p>And that cuts both ways. The limited variant deliberately drew a <span class="hl">narrower</span>
-      line than the spec: internationalized (Unicode) addresses are no longer accepted, a
-      deliberate feature for an app that never needed them. But owning the boundary also means you
-      can get its subtleties wrong: the purpose-built check quietly accepted all-numeric TLDs like
-      <code>user@example.123</code> that the library rejects. The shared test suite caught the
-      divergence and we tightened the validator to match. That's the cost and the safety net in a
-      single example.</p>
-    <p>So the honest takeaway is a fork, not a verdict. If you want <span class="hl">precise control</span>
-      over exactly which addresses your app accepts, and you keep a test oracle to hold the line,
-      owning a small validator is now cheap and worth it. If you would <span class="hl">rather not
-      carry that responsibility</span>, the expert-maintained library is still a perfectly good
-      answer. "Limiting, not eliminating" applies to the decision itself, not only the code.</p>
+    <p>Email validation is notoriously hard, and it's the one cut here that's a judgment call rather
+      than an obvious win. What's <span class="hl">literally legal per the RFC grammar</span> is far
+      broader than what most apps want to accept (<code>customer/department=shipping@example.com</code>
+      is a valid address), so shedding the ~39k-line stack also hands you the job of drawing that
+      line. It cuts both ways: the limited variant deliberately went <span class="hl">narrower</span>
+      than the spec — internationalized addresses are out — yet quietly accepted all-numeric TLDs
+      like <code>user@example.123</code> until the shared suite caught it. The cost and the safety
+      net, in a single example.</p>
+    <p>So the takeaway is a fork, not a verdict. If you want <span class="hl">precise control</span>
+      over what your app accepts, owning a small validator is now cheap — and the quiet part:
+      <span class="hl">cheap code includes cheap tests</span>. Working with an AI, enumerating the
+      accept/reject suite an email validator needs is a conversation, not a research project, and
+      that oracle is what holds the line. If you'd <span class="hl">rather not carry that
+      responsibility</span>, the expert-maintained library is still a perfectly good answer.</p>
   </div>
 
   <!-- ===== CHART B: the journey ===== -->
@@ -373,7 +483,7 @@
       The final column (green) is the shipped limited variant.</p>
     <svg viewBox="0 0 760 375" role="img" aria-labelledby="bT bD">
       <title id="bT">Third-party LOC remaining after each removal step</title>
-      <desc id="bD">217,493 at baseline; 80,003 after SQLAlchemy; 40,546 after email-validator; 40,026 after Flask-WTF; 34,103 after WTForms; 33,420 after Flask-Login; 32,654 after python-dotenv.</desc>
+      <desc id="bD">216,727 at baseline; 79,237 after SQLAlchemy; 39,780 after email-validator; 39,260 after Flask-WTF; 33,337 after WTForms; 32,654 after Flask-Login.</desc>
       <!-- gridlines -->
       <g class="grid">
         <line x1="70" y1="340" x2="740" y2="340"/>
@@ -391,39 +501,36 @@
         <text x="62" y="68">200,000</text>
       </g>
       <!-- columns -->
-      <path class="bar-blue mark"  d="M101,340 V44 Q101,40 105,40 H131 Q135,40 135,44 V340 Z"><title>Baseline — 217,493 LOC</title></path>
-      <path class="bar-blue mark"  d="M195,340 V233.7 Q195,229.7 199,229.7 H225 Q229,229.7 229,233.7 V340 Z"><title>After removing SQLAlchemy — 80,003 LOC (−137,490)</title></path>
-      <path class="bar-blue mark"  d="M289,340 V288.1 Q289,284.1 293,284.1 H319 Q323,284.1 323,288.1 V340 Z"><title>After removing email-validator — 40,546 LOC (−39,457)</title></path>
-      <path class="bar-blue mark"  d="M383,340 V288.8 Q383,284.8 387,284.8 H413 Q417,284.8 417,288.8 V340 Z"><title>After removing Flask-WTF — 40,026 LOC (−520)</title></path>
-      <path class="bar-blue mark"  d="M477,340 V297.0 Q477,293.0 481,293.0 H507 Q511,293.0 511,297.0 V340 Z"><title>After removing WTForms — 34,103 LOC (−5,923)</title></path>
-      <path class="bar-blue mark"  d="M571,340 V297.9 Q571,293.9 575,293.9 H601 Q605,293.9 605,297.9 V340 Z"><title>After removing Flask-Login — 33,420 LOC (−683)</title></path>
-      <path class="bar-green mark" d="M665,340 V299.0 Q665,295.0 669,295.0 H695 Q699,295.0 699,299.0 V340 Z"><title>After removing python-dotenv — 32,654 LOC (−766) · shipped final state</title></path>
+      <path class="bar-blue mark"  d="M108.8,340 V45.1 Q108.8,41.1 112.8,41.1 H138.8 Q142.8,41.1 142.8,45.1 V340 Z"><title>Baseline — 216,727 LOC</title></path>
+      <path class="bar-blue mark"  d="M220.5,340 V234.7 Q220.5,230.7 224.5,230.7 H250.5 Q254.5,230.7 254.5,234.7 V340 Z"><title>After removing SQLAlchemy — 79,237 LOC (−137,490)</title></path>
+      <path class="bar-blue mark"  d="M332.2,340 V289.1 Q332.2,285.1 336.2,285.1 H362.2 Q366.2,285.1 366.2,289.1 V340 Z"><title>After removing email-validator — 39,780 LOC (−39,457)</title></path>
+      <path class="bar-blue mark"  d="M443.8,340 V289.8 Q443.8,285.8 447.8,285.8 H473.8 Q477.8,285.8 477.8,289.8 V340 Z"><title>After removing Flask-WTF — 39,260 LOC (−520)</title></path>
+      <path class="bar-blue mark"  d="M555.5,340 V298.0 Q555.5,294.0 559.5,294.0 H585.5 Q589.5,294.0 589.5,298.0 V340 Z"><title>After removing WTForms — 33,337 LOC (−5,923)</title></path>
+      <path class="bar-green mark" d="M667.2,340 V299.0 Q667.2,295.0 671.2,295.0 H697.2 Q701.2,295.0 701.2,299.0 V340 Z"><title>After removing Flask-Login — 32,654 LOC (−683) · shipped final state</title></path>
       <!-- cap value labels -->
       <g class="t-primary num" font-size="11.5" font-weight="600" text-anchor="middle">
-        <text x="118" y="32">217,493</text>
-        <text x="212" y="221.7">80,003</text>
-        <text x="306" y="276.1">40,546</text>
-        <text x="400" y="276.8">40,026</text>
-        <text x="494" y="285">34,103</text>
-        <text x="588" y="285.9">33,420</text>
-        <text x="682" y="287">32,654</text>
+        <text x="125.8" y="33">216,727</text>
+        <text x="237.5" y="222.7">79,237</text>
+        <text x="349.2" y="277.1">39,780</text>
+        <text x="460.8" y="277.8">39,260</text>
+        <text x="572.5" y="286">33,337</text>
+        <text x="684.2" y="287">32,654</text>
       </g>
       <!-- x labels -->
       <g class="t-secondary" font-size="10.5" text-anchor="middle">
-        <text x="118" y="356">Baseline</text>
-        <text x="212" y="356">− SQLAlchemy</text>
-        <text x="306" y="356">− email-val.</text>
-        <text x="400" y="356">− Flask-WTF</text>
-        <text x="494" y="356">− WTForms</text>
-        <text x="588" y="356">− Flask-Login</text>
-        <text x="682" y="356">− dotenv</text>
+        <text x="125.8" y="356">Baseline</text>
+        <text x="237.5" y="356">− SQLAlchemy</text>
+        <text x="349.2" y="356">− email-val.</text>
+        <text x="460.8" y="356">− Flask-WTF</text>
+        <text x="572.5" y="356">− WTForms</text>
+        <text x="684.2" y="356">− Flask-Login</text>
       </g>
       <!-- callouts on the two big drops -->
       <g text-anchor="middle">
-        <text x="150" y="150" class="t-primary num" font-size="13" font-weight="700">−137,490</text>
-        <text x="150" y="165" class="t-muted" font-size="11">the ORM</text>
-        <text x="262" y="250" class="t-primary num" font-size="12" font-weight="700">−39,457</text>
-        <text x="262" y="264" class="t-muted" font-size="10.5">the email stack</text>
+        <text x="172" y="150" class="t-primary num" font-size="13" font-weight="700">−137,490</text>
+        <text x="172" y="165" class="t-muted" font-size="11">the ORM</text>
+        <text x="293" y="250" class="t-primary num" font-size="12" font-weight="700">−39,457</text>
+        <text x="293" y="264" class="t-muted" font-size="10.5">the email stack</text>
       </g>
     </svg>
   </figure>
@@ -438,67 +545,103 @@
     defense on every template, and <span class="hl">cookie signing</span> that the first-party CSRF and
     remember-me modules deliberately ride on rather than reinvent. AI-written replacement is a tool for
     oversized general engines with test-pinnable slivers, not a mandate to rewrite the platform or the
-    cryptography.</p>
+    cryptography. This experiment prices the options; where the dial stops in your app is your call.</p>
   <figure>
-    <p class="fig-title">What still ships: Flask's transitive core</p>
-    <p class="fig-sub">The remaining 32,654 LOC, all pulled in by <code>flask</code> itself.
-      Nothing here was rewritten.</p>
-    <svg viewBox="0 0 760 320" role="img" aria-labelledby="dT dD">
-      <title id="dT">Remaining dependencies after the experiment</title>
-      <desc id="dD">werkzeug 11,986; jinja2 8,557; click 6,673; flask 4,068; itsdangerous 650; markupsafe 394; blinker 268.</desc>
-      <g class="grid">
-        <line x1="155" y1="28" x2="155" y2="298"/>
-        <line x1="344.8" y1="28" x2="344.8" y2="298"/>
-        <line x1="534.6" y1="28" x2="534.6" y2="298"/>
+    <p class="fig-title">What one line in pyproject.toml still installs</p>
+    <p class="fig-sub">The limited variant's entire dependency list. It resolves to Flask's own transitive
+      core — seven packages, 32,596 LOC, none of it rewritten. Bars are on the same scale
+      as the baseline figure above.</p>
+    <svg viewBox="0 0 760 262" role="img" aria-labelledby="dT dD">
+      <title id="dT">What one line in pyproject.toml still installs</title>
+      <desc id="dD">The limited variant declares only flask, which resolves to seven packages totaling
+        32,596 lines: werkzeug 11,986; jinja2 8,557; click 6,673; flask 4,068; itsdangerous 650;
+        markupsafe 394; blinker 268. That is 15% of the baseline footprint.</desc>
+      <path d="M188,123.5 C212,123.5 278,42 296,42" fill="none" stroke="var(--series-2)" stroke-width="3.8" stroke-linecap="butt" opacity="0.4"/>
+      <text x="18" y="57" class="t-muted" font-size="11" font-weight="700" letter-spacing=".08em">WHAT YOU DECLARE</text>
+      <text x="300" y="20" class="t-muted" font-size="11" font-weight="700" letter-spacing=".08em">WHAT STILL INSTALLS</text>
+      <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+        <rect x="18" y="69" width="170" height="95" rx="10" fill="var(--page)" stroke="var(--grid)"/>
+        <text x="32" y="86" class="t-muted" font-size="10.5">pyproject.toml</text>
+        <line x1="18" y1="93" x2="188" y2="93" class="grid"/>
+        <text x="32" y="108" class="t-secondary" font-size="11.5">dependencies = [</text>
+        <text x="48" y="127" font-size="11.5"><tspan class="t-muted">"</tspan><tspan fill="var(--series-2)" font-weight="600">flask</tspan><tspan class="t-muted">>=3.1.3",</tspan></text>
+        <text x="32" y="146" class="t-secondary" font-size="11.5">]</text>
       </g>
-      <g class="t-muted num" font-size="11" text-anchor="middle">
-        <text x="155" y="312">0</text>
-        <text x="344.8" y="312">5,000</text>
-        <text x="534.6" y="312">10,000</text>
+      <line x1="157" y1="123.5" x2="184" y2="123.5" stroke="var(--series-2)" stroke-width="1.5" stroke-dasharray="0.1 5" stroke-linecap="round" opacity="0.55"/>
+      <circle cx="188" cy="123.5" r="3" fill="var(--series-2)"/>
+
+      <!-- flask -->
+      <text x="300" y="46" font-size="12"><tspan class="t-primary num" font-weight="650">32,596 LOC</tspan><tspan class="t-muted"> · 7 packages · −85% vs baseline</tspan></text>
+      <line x1="306" y1="54" x2="306" y2="198" class="grid"/>
+      <g class="mark">
+        <title>werkzeug — 11,986 LOC · WSGI utils + werkzeug.security password hashing — required anyway</title>
+        <line x1="306" y1="66" x2="312" y2="66" class="grid"/>
+        <text x="318" y="70" class="t-secondary" font-size="12.5">werkzeug</text>
+        <path class="bar-green" d="M440,59 H453.9 Q457.9,59 457.9,63 V69 Q457.9,73 453.9,73 H440 Z"/>
+        <text x="465.9" y="70" class="t-primary num" font-size="12" font-weight="600">11,986</text>
+        <text x="516" y="70" class="t-muted" font-size="10">password hashing — the KEEP</text>
       </g>
-      <!-- bars (all kept, green) -->
-      <path class="bar-green mark" d="M155,30 H606 Q610,30 610,34 V46 Q610,50 606,50 H155 Z"><title>werkzeug — 11,986 LOC · password hashing (the KEEP) + hostile HTTP parsing</title></path>
-      <path class="bar-green mark" d="M155,70 H475.9 Q479.9,70 479.9,74 V86 Q479.9,90 475.9,90 H155 Z"><title>jinja2 — 8,557 LOC · templating + autoescaping (XSS defense)</title></path>
-      <path class="bar-green mark" d="M155,110 H404.3 Q408.3,110 408.3,114 V126 Q408.3,130 404.3,130 H155 Z"><title>click — 6,673 LOC · the flask CLI</title></path>
-      <path class="bar-green mark" d="M155,150 H305.4 Q309.4,150 309.4,154 V166 Q309.4,170 305.4,170 H155 Z"><title>flask — 4,068 LOC · the framework proper</title></path>
-      <path class="bar-green mark" d="M155,190 H175.7 Q179.7,190 179.7,194 V206 Q179.7,210 175.7,210 H155 Z"><title>itsdangerous — 650 LOC · signs the session cookie</title></path>
-      <path class="bar-green mark" d="M155,230 H166 Q170,230 170,234 V246 Q170,250 166,250 H155 Z"><title>markupsafe — 394 LOC · HTML escaping</title></path>
-      <path class="bar-green mark" d="M155,270 H161.2 Q165.2,270 165.2,274 V286 Q165.2,290 161.2,290 H155 Z"><title>blinker — 268 LOC · signals</title></path>
-      <!-- name + reason labels (left) -->
-      <g text-anchor="end">
-        <text class="t-secondary" font-size="13" x="148" y="38">werkzeug</text>
-        <text class="t-muted" font-size="9" x="148" y="49">password hashing · KEEP</text>
-        <text class="t-secondary" font-size="13" x="148" y="78">jinja2</text>
-        <text class="t-muted" font-size="9" x="148" y="89">autoescape = XSS defense</text>
-        <text class="t-secondary" font-size="13" x="148" y="118">click</text>
-        <text class="t-muted" font-size="9" x="148" y="129">the flask CLI</text>
-        <text class="t-secondary" font-size="13" x="148" y="158">flask</text>
-        <text class="t-muted" font-size="9" x="148" y="169">the framework</text>
-        <text class="t-secondary" font-size="13" x="148" y="198">itsdangerous</text>
-        <text class="t-muted" font-size="9" x="148" y="209">signs the session</text>
-        <text class="t-secondary" font-size="13" x="148" y="238">markupsafe</text>
-        <text class="t-muted" font-size="9" x="148" y="249">HTML escaping</text>
-        <text class="t-secondary" font-size="13" x="148" y="278">blinker</text>
-        <text class="t-muted" font-size="9" x="148" y="289">signals</text>
+      <g class="mark">
+        <title>jinja2 — 8,557 LOC · templating</title>
+        <line x1="306" y1="88" x2="312" y2="88" class="grid"/>
+        <text x="318" y="92" class="t-secondary" font-size="12.5">jinja2</text>
+        <path class="bar-green" d="M440,81 H448.8 Q452.8,81 452.8,85 V91 Q452.8,95 448.8,95 H440 Z"/>
+        <text x="460.8" y="92" class="t-primary num" font-size="12" font-weight="600">8,557</text>
+        <text x="504" y="92" class="t-muted" font-size="10">autoescape = the XSS defense</text>
       </g>
-      <!-- value labels -->
-      <g class="t-primary num" font-size="12.5" font-weight="600">
-        <text x="618" y="44">11,986</text>
-        <text x="488" y="84">8,557</text>
-        <text x="416" y="124">6,673</text>
-        <text x="317" y="164">4,068</text>
-        <text x="188" y="204">650</text>
-        <text x="178" y="244">394</text>
-        <text x="173" y="284">268</text>
+      <g class="mark">
+        <title>click — 6,673 LOC · CLI framework</title>
+        <line x1="306" y1="110" x2="312" y2="110" class="grid"/>
+        <text x="318" y="114" class="t-secondary" font-size="12.5">click</text>
+        <path class="bar-green" d="M440,103 H446.0 Q450.0,103 450.0,107 V113 Q450.0,117 446.0,117 H440 Z"/>
+        <text x="458.0" y="114" class="t-primary num" font-size="12" font-weight="600">6,673</text>
+        <text x="501" y="114" class="t-muted" font-size="10">the flask CLI</text>
       </g>
+      <g class="mark">
+        <title>flask — 4,068 LOC · the web framework</title>
+        <line x1="306" y1="132" x2="312" y2="132" class="grid"/>
+        <text x="318" y="136" class="t-secondary" font-size="12.5">flask</text>
+        <rect class="bar-green" x="440" y="125" width="6.1" height="14"/>
+        <text x="454.1" y="136" class="t-primary num" font-size="12" font-weight="600">4,068</text>
+        <text x="497" y="136" class="t-muted" font-size="10">the framework proper</text>
+      </g>
+      <g class="mark">
+        <title>itsdangerous — 650 LOC · cryptographic signing</title>
+        <line x1="306" y1="154" x2="312" y2="154" class="grid"/>
+        <text x="318" y="158" class="t-secondary" font-size="12.5">itsdangerous</text>
+        <rect class="bar-green" x="440" y="147" width="2.0" height="14"/>
+        <text x="450.0" y="158" class="t-primary num" font-size="12" font-weight="600">650</text>
+        <text x="479" y="158" class="t-muted" font-size="10">signs the session cookie</text>
+      </g>
+      <g class="mark">
+        <title>markupsafe — 394 LOC · safe string handling</title>
+        <line x1="306" y1="176" x2="312" y2="176" class="grid"/>
+        <text x="318" y="180" class="t-secondary" font-size="12.5">markupsafe</text>
+        <rect class="bar-green" x="440" y="169" width="2.0" height="14"/>
+        <text x="450.0" y="180" class="t-primary num" font-size="12" font-weight="600">394</text>
+        <text x="479" y="180" class="t-muted" font-size="10">HTML escaping</text>
+      </g>
+      <g class="mark">
+        <title>blinker — 268 LOC · signal/event dispatch</title>
+        <line x1="306" y1="198" x2="312" y2="198" class="grid"/>
+        <text x="318" y="202" class="t-secondary" font-size="12.5">blinker</text>
+        <rect class="bar-green" x="440" y="191" width="2.0" height="14"/>
+        <text x="450.0" y="202" class="t-primary num" font-size="12" font-weight="600">268</text>
+        <text x="479" y="202" class="t-muted" font-size="10">signals</text>
+      </g>
+
+      <line x1="18" y1="226" x2="740" y2="226" class="axis"/>
+      <text x="380" y="248" text-anchor="middle" class="t-secondary" font-size="12"><tspan font-weight="650" class="t-primary num">1</tspan> declared dependency <tspan class="t-muted">→</tspan> <tspan font-weight="650" class="t-primary num">7</tspan> installed packages <tspan class="t-muted">→</tspan> <tspan font-weight="650" class="t-primary num">32,596</tspan> LOC shipping to production</text>
     </svg>
+    <figcaption>Same production-scoped <code>cloc</code> run. The 58 LOC of stray vendored files
+      noted above ride along with these seven packages, bringing the shipped total to 32,654.</figcaption>
   </figure>
 
   <!-- ===== TABLE ===== -->
   <h2>The record</h2>
   <h3>Removal log: what each step shed and cost</h3>
   <p>Every number below comes from re-running the same production-scoped <code>cloc</code> measurement
-    after each commit. <span class="hl">~411 lines of dependency code shed for every first-party line
+    after each commit. <span class="hl">~409 lines of dependency code shed for every first-party line
     added</span>. That's the whole trade in one ratio.</p>
   <div class="tbl-scroll">
     <table>
@@ -510,28 +653,30 @@
         </tr>
       </thead>
       <tbody>
-        <tr><td>0</td><td>— (baseline clone)</td><td>—</td><td>—</td><td>217,493</td><td>964</td></tr>
-        <tr><td>1</td><td>SQLAlchemy, Flask-SQLAlchemy <span class="t-muted">(+ typing_extensions)</span></td><td class="shed">137,490</td><td class="add">+100</td><td>80,003</td><td>1,064</td></tr>
-        <tr><td>2</td><td>email-validator <span class="t-muted">(+ idna, dnspython)</span></td><td class="shed">39,457</td><td class="add">+21</td><td>40,546</td><td>1,085</td></tr>
-        <tr><td>3</td><td>Flask-WTF</td><td class="shed">520</td><td class="add">+39</td><td>40,026</td><td>1,124</td></tr>
-        <tr><td>4</td><td>WTForms <span class="t-muted">(+ i18n catalogs)</span></td><td class="shed">5,923</td><td class="add">+195</td><td>34,103</td><td>1,319</td></tr>
-        <tr><td>5</td><td>Flask-Login</td><td class="shed">683</td><td class="add">+95</td><td>33,420</td><td>1,414</td></tr>
-        <tr><td>6</td><td>python-dotenv</td><td class="shed">766</td><td class="add">+0</td><td>32,654</td><td>1,414</td></tr>
+        <tr><td>0</td><td>— (baseline clone)</td><td>—</td><td>—</td><td>216,727</td><td>964</td></tr>
+        <tr><td>1</td><td>SQLAlchemy, Flask-SQLAlchemy <span class="t-muted">(+ typing_extensions)</span></td><td class="shed">137,490</td><td class="add">+100</td><td>79,237</td><td>1,064</td></tr>
+        <tr><td>2</td><td>email-validator <span class="t-muted">(+ idna, dnspython)</span></td><td class="shed">39,457</td><td class="add">+21</td><td>39,780</td><td>1,085</td></tr>
+        <tr><td>3</td><td>Flask-WTF</td><td class="shed">520</td><td class="add">+39</td><td>39,260</td><td>1,124</td></tr>
+        <tr><td>4</td><td>WTForms <span class="t-muted">(+ i18n catalogs)</span></td><td class="shed">5,923</td><td class="add">+195</td><td>33,337</td><td>1,319</td></tr>
+        <tr><td>5</td><td>Flask-Login</td><td class="shed">683</td><td class="add">+95</td><td>32,654</td><td>1,414</td></tr>
       </tbody>
       <tfoot>
-        <tr><td></td><td>Total</td><td class="shed">184,839</td><td class="add">+450</td><td>32,654</td><td>1,414</td></tr>
+        <tr><td></td><td>Total</td><td class="shed">184,073</td><td class="add">+450</td><td>32,654</td><td>1,414</td></tr>
       </tfoot>
     </table>
   </div>
-  <p class="self-note" style="color:var(--muted); margin-top:14px;">Step&nbsp;6 adds no shipping
-    first-party code. <code>python-dotenv</code> was only used by the dev entry point, and its 12-line
-    replacement lives in <code>run.py</code>, outside the <code>app/</code> count.</p>
+  <p class="self-note" style="color:var(--muted); margin-top:14px;">Side story: the same trade
+    exists in dev tooling — <code>python-dotenv</code> (766 LOC, local-only <code>.env</code> loading;
+    prod injects real env vars) is a dev dependency here, and the limited variant still swapped it for
+    a 12-line first-party loader. Dev deps can shrink too, but selectively: nobody is about to
+    replace pytest.</p>
 
   <footer>
     <p><strong>Method note.</strong> "Production scope" counts only code that ships: the dev/test
-      toolchain (<code>pytest</code>, <code>coverage</code>, and transitive deps, ~143k LOC) is
-      excluded, and Python itself is treated as first-party platform. Both variants pass the same
-      65-test black-box suite; the security-sensitive primitives (password hashing, session signing,
+      toolchain (<code>pytest</code>, <code>coverage</code>, <code>python-dotenv</code>, and
+      transitive deps, ~143.5k LOC) is excluded, and Python itself is treated as first-party
+      platform. Both variants pass the same
+      138-test black-box suite; the security-sensitive primitives (password hashing, session signing,
       token comparison) were deliberately <em>not</em> rewritten.</p>
     <p>Source, both variants, and full research notes:
       <a href="https://github.com/AlteredCraft/3p-deps-case-study">github.com/AlteredCraft/3p-deps-case-study</a>.
