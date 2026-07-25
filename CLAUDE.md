@@ -7,10 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A case study for an AlteredCraft article on using AI to remove/limit third-party dependencies. It holds **two variants of the same Flask + SQLite + login todo app** plus shared research:
 
 - `todo-3pdeps/` — the baseline, full conventional dependency stack.
-- `todo-3pdeps-limited/` — a behavior-identical copy whose heavy dependencies (SQLAlchemy, email-validator, Flask-WTF, WTForms, Flask-Login, python-dotenv) **have been replaced** with small, purpose-built modules (`app/db.py`, `app/csrf.py`, `app/formlib.py`, `app/login.py`); its only declared runtime dependency is `flask`. Security-sensitive libraries (`werkzeug.security` password hashing, itsdangerous session signing via Flask) are deliberately **kept**.
+- `todo-3pdeps-limited/` — a behavior-identical copy whose heavy dependencies (SQLAlchemy, email-validator, Flask-WTF, WTForms, Flask-Login) **have been replaced** with small, purpose-built modules (`app/db.py`, `app/csrf.py`, `app/formlib.py`, `app/login.py`); its only declared runtime dependency is `flask`. Dev-only python-dotenv is likewise replaced by a 12-line `envloader.py` (a dev-deps side story — it never shipped to prod and is not part of the prod-LOC payload). Security-sensitive libraries (`werkzeug.security` password hashing, itsdangerous session signing via Flask) are deliberately **kept**.
 - `research/notes.md` — the premise, the cloc baselines, the **removal log** (per-step LOC deltas), the argued rationale for keeping Flask, and the testing strategy. **Read it before doing any dependency or refactor work.**
 
-The two variants are **independent `uv` projects** (each with its own `pyproject.toml`, lockfile, and `.venv`) so their dependency sets can diverge. They must pass the same test suite; the diff in their `cloc` metrics is the article's payload (217,493 → 32,654 third-party prod LOC, −85%). The removal was executed 2026-07-15 as one commit per dependency — `git log` is the step-by-step diff trail.
+The two variants are **independent `uv` projects** (each with its own `pyproject.toml`, lockfile, and `.venv`) so their dependency sets can diverge. They must pass the same test suite; the diff in their `cloc` metrics is the article's payload (216,727 → 32,654 third-party prod LOC, −85%). The removal was executed 2026-07-15 as one commit per dependency — `git log` is the step-by-step diff trail. (python-dotenv was reclassified 2026-07-21 as a dev dependency in the baseline; it is excluded from all prod-scope figures.)
 
 ## Commands
 
@@ -20,7 +20,7 @@ Run everything **from inside a variant directory** (that's where each `pyproject
 cd todo-3pdeps            # or todo-3pdeps-limited
 uv sync                   # create/refresh the variant's .venv
 uv run python run.py      # http://127.0.0.1:5000 (Flask dev server, debug on)
-uv run pytest             # all 65 tests
+uv run pytest             # all 138 tests
 uv run pytest tests/test_todos.py::test_edit_updates_task   # a single test (or -k <expr>)
 uv run pytest --cov=app --cov-report=term-missing           # coverage (app/ stays at 100%)
 uv run flask --app run init-db                              # create DB tables (factory also does this on startup)
@@ -28,7 +28,7 @@ uv run flask --app run init-db                              # create DB tables (
 
 To drive a variant without changing directory, use `uv run --directory <variant> …`.
 
-Each variant needs `SECRET_KEY` in its environment or local `.env` (see `.env.example`); `run.py` loads `.env` (via `python-dotenv` in the baseline, a small first-party loader in the limited variant). Missing required config fails fast (`app/config._require`). The SQLite file is `instance/todo.sqlite` (gitignored). DB location override: `DATABASE_URL` (baseline) / `DATABASE_PATH` (limited).
+Each variant needs `SECRET_KEY` in its environment or local `.env` (see `.env.example`); `run.py` loads `.env` (via dev-group `python-dotenv` in the baseline, first-party `envloader.py` in the limited variant — `.env` loading is local-dev only; prod injects real env vars). Missing required config fails fast (`app/config._require`). The SQLite file is `instance/todo.sqlite` (gitignored). DB location override: `DATABASE_URL` (baseline) / `DATABASE_PATH` (limited).
 
 ## Architecture
 

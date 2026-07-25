@@ -19,3 +19,6 @@ instance/
 .coverage
 .coverage.*
 htmlcov/
+
+# MacOS
+.DS_Store

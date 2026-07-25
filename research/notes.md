@@ -216,6 +216,17 @@ Measured 2026-07-15 with `cloc 2.06`.
   > the raw `.venv`. First-party: `app/` (ships) is 964 LOC; `tests/` (dev-only) is
   > 442 LOC — neither the growing suite nor the tooling moves the two headline
   > numbers.
+
+  > **Update (2026-07-21, python-dotenv reclassified):** `python-dotenv`
+  > (766 LOC, 8 files) moved from the baseline's runtime deps to the dev group —
+  > it only ever served `run.py`'s local `.env` loading; production injects real
+  > env vars, so it never actually shipped. All prod-scope figures in this file
+  > now exclude it: baseline 217,493 → **216,727 LOC**, 657 → **649 files**; the
+  > dev/test toolchain grows to **143,554 LOC**. Re-verified by rebuilding the
+  > `--no-dev` env and re-running the cloc method (cloc 2.10): every per-package
+  > count reproduces the 2.06 table exactly; the only raw-total delta is the venv
+  > seed file `_virtualenv.py` (73 LOC in today's env vs 58 on 2026-07-15) —
+  > venv machinery, not a dependency.
 - **Cruft filtered.** No `.pyc` / `__pycache__` (cloc treats these as non-source
   anyway; a fresh prod install has none), no `*.dist-info` metadata, no bundled
   package test suites.
@@ -243,13 +254,13 @@ cloc app
 | Scope | Files | Code (LOC) | Share |
 | --- | ---: | ---: | ---: |
 | **First-party** — our shipping code (`app/`) | 14 | **967** | 0.44% |
-| **Third-party** — prod deps only | 657 | **217,493** | 99.56% |
-| **Total shipping code** | 671 | **218,460** | 100% |
+| **Third-party** — prod deps only | 649 | **216,727** | 99.56% |
+| **Total shipping code** | 663 | **217,694** | 100% |
 
 - First-party shipping code = **967 LOC** (431 Python + 260 HTML + 276 CSS).
   Python-only, per the scope note, that's **431 LOC**.
-- **For every 1 line of our shipping code, ~225 lines of third-party code ship
-  alongside it.** Measured Python-to-Python (212,421 vs 431), it's **~493×**.
+- **For every 1 line of our shipping code, ~224 lines of third-party code ship
+  alongside it.** Measured Python-to-Python (211,655 vs 431), it's **~491×**.
 - `tests/` (536 LOC) and `run.py` (11 LOC, dev entry — prod uses
   `gunicorn "app:create_app()"`) are excluded from the shipping first-party count.
 
@@ -257,20 +268,20 @@ cloc app
 
 | Language | Code | Note |
 | --- | ---: | --- |
-| Python | 212,421 | 97.7% of prod deps |
+| Python | 211,655 | 97.7% of prod deps |
 | PO File (i18n) | 3,721 | gettext translation catalogs (click, wtforms…) |
 | Cython | 583 | SQLAlchemy C-extension sources |
 | JavaScript | 292 | werkzeug interactive debugger assets |
 | C | 177 | markupsafe speedups |
 | CSS | 130 | werkzeug debugger styles |
 | (Text / Markdown) | ~169 | stray package docs |
-| **Total** | **217,493** | |
+| **Total** | **216,727** | |
 
 ### Per-dependency breakdown (prod, filtered)
 
 | Package | Code (LOC) | % of prod deps | Role |
 | --- | ---: | ---: | --- |
-| **sqlalchemy** | 133,937 | **61.6%** | ORM + Core. The whole ballgame. |
+| **sqlalchemy** | 133,937 | **61.8%** | ORM + Core. The whole ballgame. |
 | **idna** | 19,389 | 8.9% | Internationalized domain names — via `email-validator`. |
 | **dns** (dnspython) | 19,300 | 8.9% | DNS toolkit — via `email-validator` (deliverability). |
 | werkzeug | 11,986 | 5.5% | WSGI utils + **`werkzeug.security` password hashing (KEEP)**. |
@@ -281,23 +292,22 @@ cloc app
 | typing_extensions | 2,549 | 1.2% | Back-ported typing — via SQLAlchemy. |
 | flask_sqlalchemy | 1,004 | 0.5% | Flask ↔ SQLAlchemy glue. |
 | email_validator | 768 | 0.4% | Email validation (drags in idna + dns). |
-| dotenv | 766 | 0.4% | `.env` loading. |
 | flask_login | 683 | 0.3% | Session/auth management. |
 | itsdangerous | 650 | 0.3% | Signed cookies/tokens. |
 | flask_wtf | 520 | 0.2% | CSRF + Flask/WTForms glue. |
 | markupsafe | 394 | 0.2% | HTML escaping. |
 | blinker | 268 | 0.1% | Signals. |
 
-### The dominant finding: two features = ~79% of the footprint
+### The dominant finding: two features = ~80% of the footprint
 
-- **SQLAlchemy alone is 61.6% of all production dependency code** — 133,937 LOC,
+- **SQLAlchemy alone is 61.8% of all production dependency code** — 133,937 LOC,
   or **~311× our shipping first-party Python** (138× counting all our shipping
   code) — for an app with two models and a handful of simple queries.
 - **Email validation costs ~39k LOC.** `email-validator` is only 768 LOC, but it
-  pulls in `idna` (19,389) + `dnspython` (19,300). That's **17.8% of the prod
+  pulls in `idna` (19,389) + `dnspython` (19,300). That's **17.9% of the prod
   footprint to validate an email string** — "more code than you need," literal.
-- **SQLAlchemy + the email stack = 172,626 LOC = 79.4%** of everything that
-  ships. The other 15 packages combined are ~45k LOC.
+- **SQLAlchemy + the email stack = 172,626 LOC = 79.7%** of everything that
+  ships. The other 14 packages combined are ~44k LOC.
 
 ### Early observations (to develop in the article)
 
@@ -319,7 +329,7 @@ cloc app
 ### The tradeoff question this sets up
 
 If AI can write the precise ~few-hundred lines our app actually needs, how much of
-the **217,493 LOC** of production dependency code can we responsibly shed — and
+the **216,727 LOC** of production dependency code can we responsibly shed — and
 where (password hashing, cookie signing, HTML escaping) is keeping the
 expert-maintained library still the right call? **Answered below**: the Removal
 log replaces the dependencies one at a time and re-measures; "The keep, argued"
@@ -330,7 +340,8 @@ documents where the cutting stopped and why.
 Each step removed one dependency from `todo-3pdeps-limited/`, replacing it with
 purpose-built first-party code, and landed as **one git commit**. A step only
 counted when the **unchanged test suite was green** afterwards (57 tests during
-the removals; grown to 65 by the post-experiment hardening below). Numbers come
+the removals; since grown to 138 via the post-experiment hardening below, the
+email-validation broadening, and the `.env` loader pins). Numbers come
 from re-running the baseline measurement (prod-only env, cruft filtered,
 `cloc app` for first-party). Step 0 re-measures the fresh clone: 964 first-party
 LOC vs the pre-split 967 in the headline table — 3 lines of drift from the repo
@@ -338,13 +349,12 @@ split; every delta below chains from the re-measured figure.
 
 | Step | Dependency removed | 3P LOC shed | 1P LOC added | 3P total | 1P total (`app/`) |
 | ---: | --- | ---: | ---: | ---: | ---: |
-| 0 | — (baseline clone) | — | — | 217,493 | 964 |
-| 1 | sqlalchemy, flask-sqlalchemy (+ typing_extensions) | 137,490 | +100 | 80,003 | 1,064 |
-| 2 | email-validator (+ idna, dnspython) | 39,457 | +21 | 40,546 | 1,085 |
-| 3 | flask-wtf | 520 | +39 | 40,026 | 1,124 |
-| 4 | wtforms (+ its i18n catalogs) | 5,923 | +195 | 34,103 | 1,319 |
-| 5 | flask-login | 683 | +95 | 33,420 | 1,414 |
-| 6 | python-dotenv | 766 | +0 (12 in dev-only `run.py`) | 32,654 | 1,414 |
+| 0 | — (baseline clone) | — | — | 216,727 | 964 |
+| 1 | sqlalchemy, flask-sqlalchemy (+ typing_extensions) | 137,490 | +100 | 79,237 | 1,064 |
+| 2 | email-validator (+ idna, dnspython) | 39,457 | +21 | 39,780 | 1,085 |
+| 3 | flask-wtf | 520 | +39 | 39,260 | 1,124 |
+| 4 | wtforms (+ its i18n catalogs) | 5,923 | +195 | 33,337 | 1,319 |
+| 5 | flask-login | 683 | +95 | 32,654 | 1,414 |
 
 Step notes:
 
@@ -398,27 +408,37 @@ Step notes:
    rejected, cleared on logout, HttpOnly/SameSite honored. Session identity
    still rides Flask's itsdangerous-signed cookie — the crypto stayed with
    the experts. No conftest change.
-6. **python-dotenv → 12-line loader in `run.py`** (2026-07-15). The library
-   was only ever used by the dev entry point to read `.env`
-   (KEY=VALUE lines, existing env vars win). 766 LOC shipped to prod for a
-   dev convenience; the replacement adds zero shipping first-party LOC
-   because `run.py` is outside the `app/` count. Verified live: with
-   `SECRET_KEY` unset in the environment, `run.py` still boots from `.env`.
-   No conftest change.
+**Side story — dev dependencies (python-dotenv).** The original run counted
+python-dotenv as removal step 6 (−766). That framing was misleading: the
+library only ever served `run.py`'s local `.env` loading — production injects
+real env vars — so a "766 → 0 in prod" win never existed. On 2026-07-21 it was
+reclassified as the dev dependency it always was (baseline dev group, alongside
+pytest) and dropped from the prod-scope story; see the measurement update
+above. The swap itself still stands, just on the dev side of the fence: the
+limited variant replaces the 766-LOC library with a 12-line first-party loader
+(dev-only `envloader.py`, importable without booting the app), and the `.env`
+contract is test-pinned — four tests added identically to both variants
+(`tests/test_env.py`, via a `load_env` conftest adapter wrapping python-dotenv
+in the baseline and `envloader` in the limited variant) covering KEY=VALUE
+loading, environment-wins precedence, comments/blanks/quotes/`export`
+prefixes, and missing-file no-op. The wider lesson for the article: dev
+dependencies can be trimmed the same way, but selectively — nobody here is
+about to replace pytest; the ~143.5k-LOC dev toolchain never ships, so it was
+never the problem being measured.
 
 ### Where it landed (2026-07-15)
 
 `todo-3pdeps-limited/pyproject.toml` now declares **one** runtime dependency:
 `flask`. Everything else that ships is Flask's own transitive core.
 
-| Scope | Baseline | After step 6 | Δ |
+| Scope | Baseline | After step 5 | Δ |
 | --- | ---: | ---: | ---: |
-| Third-party (prod, filtered) | 217,493 | 32,654 | **−184,839 (−85.0 %)** |
+| Third-party (prod, filtered) | 216,727 | 32,654 | **−184,073 (−84.9 %)** |
 | First-party `app/` | 964 | 1,414 | +450 |
 | Python-only first-party | 428 | 878 | +450 |
 | 3P-to-1P shipping ratio | ~225 : 1 | ~23 : 1 | |
 
-- **~411 lines of dependency code shed per first-party line added.**
+- **~409 lines of dependency code shed per first-party line added.**
 - New purpose-built modules: `db.py` (66 raw lines), `csrf.py` (44),
   `login.py` (143), `formlib.py` (343) — each fully readable in one sitting.
 - Remaining third-party, all via `flask`: werkzeug 11,986 (**the KEEP** —
@@ -436,7 +456,7 @@ Step notes:
 
 ### Post-experiment: hardening the oracle back to 100 % (2026-07-15)
 
-After step 6, line coverage of the limited variant's `app/` had slipped to
+After the removals, line coverage of the limited variant's `app/` had slipped to
 97 % — the new purpose-built modules had branches no test exercised. Restoring
 the 100 % floor produced two findings worth keeping:
 
@@ -465,7 +485,7 @@ one declared dependency left in `todo-3pdeps-limited`, and the choice is not
 sentimental — Flask fails every criterion that justified the other removals,
 all at once.
 
-**The stopping rule** (distilled from the six removals): replace a dependency
+**The stopping rule** (distilled from the five removals): replace a dependency
 when (a) the app uses a *sliver* of a general-purpose engine, (b) the sliver's
 behavior can be pinned by black-box tests, and (c) the code is not parsing
 adversarial input or doing cryptography. Keep it otherwise.
@@ -475,7 +495,7 @@ adversarial input or doing cryptography. Keep it otherwise.
 Every removal paid because the app exercised a fraction of the library:
 134k LOC of ORM for two tables and a dozen queries; 39k LOC of IDNA + DNS
 for a format check. That asymmetry is what made the average trade
-**~411 lines shed per first-party line added**. Flask is the opposite case:
+**~409 lines shed per first-party line added**. Flask is the opposite case:
 this app touches routing, blueprints, request/response objects, signed
 sessions, flash messages, config, error handlers, templating, the CLI, and
 the test client. Rewriting it wouldn't shed unused generality — it would
@@ -501,7 +521,7 @@ engines were.* The 85 % cut came from removing engines, not platform.
 
 ### 3. The test oracle depends on the boundary staying put
 
-All 65 black-box tests drive the app through **Flask's test client**. The
+All 138 black-box tests drive the app through **Flask's test client**. The
 HTTP boundary is the fixed point that made every removal provable. Replacing
 Flask would invalidate the harness itself — the riskiest rewrite in the
 project would be attempted with the least evidence. (A dependency you can

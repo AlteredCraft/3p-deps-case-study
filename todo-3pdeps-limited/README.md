@@ -4,9 +4,9 @@ A full-featured multi-user todo web app built with Flask and SQLite — and
 **almost nothing else**: this is the limited-dependencies variant of the
 repo's experiment (see [`../research/notes.md`](../research/notes.md)), where
 the conventional stack (SQLAlchemy, Flask-Login, Flask-WTF/WTForms,
-email-validator, python-dotenv) has been replaced by small, purpose-built
-first-party modules. `pyproject.toml` declares a single runtime dependency:
-`flask`. Each user has a private, isolated list of tasks with priorities,
+email-validator — plus dev-only python-dotenv) has been replaced by small,
+purpose-built first-party modules. `pyproject.toml` declares a single runtime
+dependency: `flask`. Each user has a private, isolated list of tasks with priorities,
 categories, due dates, notes, search, filtering, and sorting.
 
 ## Features

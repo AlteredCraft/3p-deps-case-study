@@ -93,6 +93,22 @@ def csrf_client(csrf_app):
     return csrf_app.test_client()
 
 
+# ---- env-file loading adapter ------------------------------------------------
+# The .env loader is dev-only tooling (used by run.py, never by app/). This
+# fixture is the implementation-aware seam: here it wraps python-dotenv; in the
+# limited variant it wraps the first-party ``envloader`` module.
+
+@pytest.fixture
+def load_env():
+    """Call this variant's .env loader on a path; restore os.environ after."""
+    from dotenv import load_dotenv
+
+    saved = os.environ.copy()
+    yield lambda path: load_dotenv(dotenv_path=path)
+    os.environ.clear()
+    os.environ.update(saved)
+
+
 # ---- black-box HTTP helpers -------------------------------------------------
 
 def register(client, username="alice", email="alice@example.com", password="password123"):
