@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Findings: The shrinking case for third-party dependencies</title>
-<meta name="description" content="Case-study findings: replacing heavy Python dependencies with small, AI-written, purpose-built code cut a Flask todo app's third-party production footprint from 216,727 to 32,654 LOC (−85%), with a principled stopping point.">
+<title>Findings: Recalibrating build-versus-borrow when code is cheap to write</title>
+<meta name="description" content="Case-study findings: replacing heavy Python dependencies with small, AI-written, purpose-built code cut a Flask todo app's third-party production footprint from 216,727 to 32,654 LOC (−85%), plus an argued case for where the cutting stops.">
 <style>
   :root {
     color-scheme: light;
@@ -81,6 +81,7 @@
   h2 { font-size: 15px; letter-spacing: .06em; text-transform: uppercase;
        color: var(--muted); font-weight: 700; margin: 56px 0 6px; }
   h3 { font-size: 24px; letter-spacing: -0.01em; margin: 4px 0 10px; }
+  h3.cont { margin-top: 46px; }   /* h3 that continues a section, with no h2 above it */
   p { max-width: 68ch; }
   p .hl { color: var(--text-primary); font-weight: 650; }
   hr { border: none; border-top: 1px solid var(--border); margin: 0; }
@@ -89,7 +90,8 @@
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 26px 0 8px; }
   .stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
           padding: 16px 16px 14px; }
-  .stat .lab { font-size: 13px; color: var(--text-secondary); }
+  .stat .lab { font-size: 13px; color: var(--text-secondary);
+               min-height: 3.2em; }   /* reserve two lines so all four values share a baseline */
   .stat .val { font-size: clamp(26px, 4.4vw, 34px); font-weight: 650; letter-spacing: -0.02em;
                margin: 6px 0 2px; line-height: 1; }
   .stat .sub { font-size: 13px; color: var(--muted); }
@@ -132,6 +134,11 @@
   .bar-blue  { fill: var(--series-1); }
   .bar-green { fill: var(--series-2); }
   .mark:hover { opacity: .82; }
+  /* drop annotation: dashed guides off each bar top + a measure line in the gutter */
+  .drop line  { stroke: var(--series-1); stroke-width: 1; stroke-dasharray: 2 3; opacity: .45; }
+  .drop .stem { stroke-width: 1.2; stroke-dasharray: none; opacity: .8; }
+  .drop .head { fill: var(--series-1); opacity: .8; }
+  .drop-val   { fill: var(--series-1); font-weight: 700; }
 
   /* ---- table ---- */
   .tbl-scroll { overflow-x: auto; margin-top: 18px; -webkit-overflow-scrolling: touch; }
@@ -145,6 +152,17 @@
   tfoot td { font-weight: 700; border-top: 2px solid var(--baseline); border-bottom: none; }
   td.shed { color: var(--series-1); }
   td.add  { color: var(--good); }
+
+  /* ---- footnotes ---- */
+  .fn { font-size: .78em; font-weight: 600; color: var(--series-1);
+        text-decoration: none; white-space: nowrap; }
+  .fn:hover { text-decoration: underline; }
+  .notes { list-style: none; padding: 0; margin: 10px 0 24px; }
+  .notes li { margin: 0 0 11px; max-width: 70ch; }
+  .notes .key  { color: var(--series-1); font-weight: 600; }
+  .notes .back { color: var(--series-1); text-decoration: none; margin-left: 3px; }
+  .notes .back:hover { text-decoration: underline; }
+  [id^="fn"] { scroll-margin-top: 24px; }
 
   footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--border);
            font-size: 14px; color: var(--muted); }
@@ -161,13 +179,15 @@
     <button class="theme-btn" id="theme" type="button" aria-label="Toggle color theme">◐ Theme: Auto</button>
   </div>
 
-  <h1>The shrinking case for third-party dependencies</h1>
+  <h1>Recalibrating build-versus-borrow when code is cheap to write</h1>
   <p class="lede">One Flask todo app, built twice. Replacing its heavy dependencies with
     small, AI-written, purpose-built code cut the third-party production footprint from
-    <strong>216,727</strong> to <strong>32,654</strong> lines, an <strong>85%</strong> reduction.
-    Behavior stayed identical, and the security-sensitive libraries stayed with the experts.</p>
-  <p class="sourceline">Measured 2026-07-15 with <code>cloc</code> 2.06, production scope
-    (code that ships to prod; dev/test toolchain excluded). Full method, per-step diff trail, and
+    <strong>216,727</strong> to <strong>32,654</strong> lines of code (LOC), an <strong>85%</strong> reduction.
+    A shared test suite held behavior identical across both builds, and the security-sensitive
+    libraries stayed with the experts.</p>
+  <p class="sourceline">Measured 2026-07-15 with <a href="https://github.com/AlDanial/cloc/"><code>cloc</code> 2.06</a>, production scope
+    (code that ships to prod; dev/test toolchain excluded).<a class="fn" id="fnref1" href="#fn1">[1]</a>
+    Full method, per-step diff trail, and
     the argued stopping point in <a href="https://github.com/AlteredCraft/3p-deps-case-study/blob/main/research/notes.md">research&nbsp;notes</a>.</p>
 
   <!-- ===== STAT ROW ===== -->
@@ -183,9 +203,9 @@
       <div class="sub good">−184,073 &nbsp;(−85%)</div>
     </div>
     <div class="stat">
-      <div class="lab">Shed per line we took on</div>
-      <div class="val num">409 : 1</div>
-      <div class="sub">184,073 shed / 450 first-party added</div>
+      <div class="lab">Dependency lines shed per line written</div>
+      <div class="val num">409×</div>
+      <div class="sub">184,073 shed for 450 written</div>
     </div>
     <div class="stat">
       <div class="lab">Declared runtime deps</div>
@@ -196,29 +216,34 @@
 
   <!-- ===== PREMISE ===== -->
   <h2>The premise</h2>
-  <h3>When code gets cheap, build-vs-borrow invites reconsideration</h3>
+  <h3>What changed is the cost of writing the alternative</h3>
   <p>When code was expensive to write, pulling in a general-purpose library was usually the
     rational choice. You got a working solution cheaply, and accepted the costs: unknown
-    maintainers, far more code than you need, and a "good enough" fit to your <em>actual</em>
-    problem. When AI can produce a precise, minimal implementation on demand, that math deserves
-    a fresh look, dependency by dependency. For some, owning a small, purpose-built module you
-    fully understand becomes the better deal. How many is a dial, not a doctrine — set by your
-    app, your team, and your risk profile.</p>
-  <p>The vehicle is a full-featured Flask&nbsp;+&nbsp;SQLite&nbsp;+&nbsp;login todo app, kept in
+    maintainers, often far more code than you need, and a "good enough" fit to your <em>actual</em>
+    problem. When AI can produce a narrow implementation on demand, and a test suite can hold it
+    in place, it's worth asking dependency by dependency whether it is worth the trade-off to borrow versus build. For
+    some, owning a small, purpose-built module you can read end to end turns out to be the better deal.
+    How many is a dial, not a doctrine. Your app, your team, and your risk profile set it.</p>
+  <p>The example web app is a Python full-featured Flask&nbsp;+&nbsp;SQLite&nbsp;+&nbsp;login todo app, kept in
     <span class="hl">two behavior-identical variants</span>: a <em>baseline</em> on the conventional
     Python web stack, and a <em>limited</em> variant whose heavy dependencies were replaced
-    one at a time. A shared black-box test suite, byte-identical across both, is the oracle that
-    proves each swap preserved behavior. The gap in their <code>cloc</code> figures is the finding.</p>
+    one at a time. A shared black-box test suite, byte-identical across both, is the regression net
+    each swap had to pass.<a class="fn" id="fnref2" href="#fn2">[2]</a> Behavior is held constant,
+    so the only difference left to measure is how much third-party code each variant ships.</p>
   <figure>
     <img src="img/todo-app.png" width="1490" height="1086"
          alt="Screenshot of the todo app: a My Tasks page with search, All/Active/Done filters, priority and category dropdowns, sorting, a 'Task added' flash message, and one task tagged HIGH priority in a Podcasts category with a due date.">
     <figcaption>The app in question: accounts, per-user task lists, priorities, categories, due
-      dates, search, filtering, sorting. Both variants serve this exact UI — the experiment only
+      dates, search, filtering, sorting. Both variants serve this exact UI. The experiment only
       counts if nothing here changes.</figcaption>
   </figure>
 
   <!-- ===== CHART A: headline ===== -->
   <h2>The headline</h2>
+  <p>Every number on this page comes from <code>cloc</code>, an open-source line counter. Point it at
+    a directory and it walks the tree, works out each file's language, and reports blank, comment,
+    and code lines separately. The figures here are the code column only, counted against a
+    production-only virtualenv built from the lockfile.</p>
   <figure>
     <p class="fig-title">Third-party production code, before and after</p>
     <p class="fig-sub">Lines of code that ship to production, excluding the dev/test toolchain.
@@ -260,14 +285,14 @@
   </figure>
 
   <!-- ===== CHART C: composition ===== -->
-  <h2>Where the weight was</h2>
+  <h2>Where the weight was, and how it came off</h2>
   <h3>Two features carried ~80% of the footprint</h3>
   <p><span class="hl">SQLAlchemy alone was 61.8% of all shipped dependency code</span>: 133,937 lines
     for an app with two tables and a dozen simple queries. Email validation cost another ~39k: the
     768-line <code>email-validator</code> drags in an entire IDNA + DNS stack (<code>idna</code> 19,389
     and <code>dnspython</code> 19,300) to format-check a string. Together, the ORM and the email stack
-    are <span class="hl">80% of everything that ships</span>. The framework glue was never the bloat.
-    The engines were.</p>
+    are <span class="hl">80% of everything that ships</span>. In this app, the framework glue was
+    never the bloat. The engines were.</p>
   <figure>
     <p class="fig-title">What five lines in pyproject.toml actually install</p>
     <p class="fig-sub">Left: the dependency list as a developer sees it. Right: the 16 packages it
@@ -452,38 +477,32 @@
   <!-- ===== CALLOUT: the gray line ===== -->
   <div class="callout">
     <span class="callout-label">The gray line</span>
-    <h3 class="callout-h">Email validation is the one cut that's a genuine judgment call</h3>
-    <p>Email validation is notoriously hard, and it's the one cut here that's a judgment call rather
-      than an obvious win. What's <span class="hl">literally legal per the RFC grammar</span> is far
-      broader than what most apps want to accept (<code>customer/department=shipping@example.com</code>
-      is a valid address), so shedding the ~39k-line stack also hands you the job of drawing that
-      line. It cuts both ways: the limited variant deliberately went <span class="hl">narrower</span>
-      than the spec — internationalized addresses are out — yet quietly accepted all-numeric TLDs
-      like <code>user@example.123</code> until the shared suite caught it. The cost and the safety
-      net, in a single example.</p>
-    <p>So the takeaway is a fork, not a verdict. If you want <span class="hl">precise control</span>
-      over what your app accepts, owning a small validator is now cheap — and the quiet part:
-      <span class="hl">cheap code includes cheap tests</span>. Working with an AI, enumerating the
-      accept/reject suite an email validator needs is a conversation, not a research project, and
-      that oracle is what holds the line. If you'd <span class="hl">rather not carry that
-      responsibility</span>, the expert-maintained library is still a perfectly good answer.</p>
+    <h3 class="callout-h">Email validation is where this gets genuinely arguable</h3>
+    <p>Email validation is the cut I'd call a judgment call rather than a clear win. What's
+      <span class="hl">legal per the RFC grammar</span> is far broader than what most apps want to
+      accept, so shedding the ~39k-line stack hands you the job of drawing that line. It cuts both
+      ways: the limited variant went deliberately <span class="hl">narrower</span> than the spec,
+      then quietly accepted all-numeric TLDs like <code>user@example.123</code> until the shared
+      suite caught it.</p>
+    <p>Owning a small validator buys <span class="hl">precise control</span>, and
+      cheap code includes cheap tests. If you'd rather not carry that, the expert-maintained library
+      remains a good answer.</p>
   </div>
 
   <!-- ===== CHART B: the journey ===== -->
-  <h2>The journey</h2>
-  <h3>One commit per dependency, the suite green after each</h3>
+  <h3 class="cont">One commit per dependency, the suite green after each</h3>
   <p>Each removal replaced one library with purpose-built first-party code and landed as a single
-    git commit. A step only counted when the unchanged test suite passed afterward. The shape of the
-    descent <em>is</em> the argument: <span class="hl">SQLAlchemy is the cliff</span> (−137,490), the
-    email stack is the second step (−39,457), and everything after is a rounding-error tail. Diminishing
-    returns made the stopping point obvious.</p>
+    git commit. A step only counted when the unchanged test suite passed afterward. Plotted as a
+    running total, <span class="hl">the descent belongs almost entirely to those two engines</span>:
+    the last three steps together shed about 4% of what the first two did. By then, diminishing
+    returns made stopping the easier case to argue.</p>
   <figure>
     <p class="fig-title">Third-party LOC still shipping after each removal</p>
     <p class="fig-sub">Running total after the dependency named below each column was replaced.
       The final column (green) is the shipped limited variant.</p>
     <svg viewBox="0 0 760 375" role="img" aria-labelledby="bT bD">
       <title id="bT">Third-party LOC remaining after each removal step</title>
-      <desc id="bD">216,727 at baseline; 79,237 after SQLAlchemy; 39,780 after email-validator; 39,260 after Flask-WTF; 33,337 after WTForms; 32,654 after Flask-Login.</desc>
+      <desc id="bD">216,727 at baseline; 79,237 after SQLAlchemy; 39,780 after email-validator; 39,260 after Flask-WTF; 33,337 after WTForms; 32,654 after Flask-Login. The two largest drops are annotated: −137,490 for the ORM and −39,457 for the email stack.</desc>
       <!-- gridlines -->
       <g class="grid">
         <line x1="70" y1="340" x2="740" y2="340"/>
@@ -525,12 +544,28 @@
         <text x="572.5" y="356">− WTForms</text>
         <text x="684.2" y="356">− Flask-Login</text>
       </g>
-      <!-- callouts on the two big drops -->
-      <g text-anchor="middle">
-        <text x="172" y="150" class="t-primary num" font-size="13" font-weight="700">−137,490</text>
-        <text x="172" y="165" class="t-muted" font-size="11">the ORM</text>
-        <text x="293" y="250" class="t-primary num" font-size="12" font-weight="700">−39,457</text>
-        <text x="293" y="264" class="t-muted" font-size="10.5">the email stack</text>
+      <!-- the two big drops, measured in the gutter between the bars they span -->
+      <g class="drop">
+        <!-- SQLAlchemy: 216,727 → 79,237 -->
+        <line x1="144" y1="41.1" x2="190" y2="41.1"/>
+        <line x1="173" y1="230.7" x2="219" y2="230.7"/>
+        <line class="stem" x1="181.65" y1="46.5" x2="181.65" y2="225.3"/>
+        <path class="head" d="M181.65,41.1 l-3.6,6 h7.2 Z"/>
+        <path class="head" d="M181.65,230.7 l-3.6,-6 h7.2 Z"/>
+        <!-- email stack: 79,237 → 39,780 -->
+        <line x1="256" y1="230.7" x2="301" y2="230.7"/>
+        <line x1="285" y1="285.1" x2="331" y2="285.1"/>
+        <line class="stem" x1="293.35" y1="236.1" x2="293.35" y2="279.7"/>
+        <path class="head" d="M293.35,230.7 l-3.6,6 h7.2 Z"/>
+        <path class="head" d="M293.35,285.1 l-3.6,-6 h7.2 Z"/>
+      </g>
+      <g class="drop-val num">
+        <text x="190" y="146" font-size="12.5">−137,490</text>
+        <text x="301" y="246" font-size="12">−39,457</text>
+      </g>
+      <g class="t-muted">
+        <text x="190" y="160" font-size="11">the ORM</text>
+        <text x="301" y="259" font-size="10.5">the email stack</text>
       </g>
     </svg>
   </figure>
@@ -538,18 +573,20 @@
   <!-- ===== CHART D: the keep ===== -->
   <h2>Where the cutting stopped</h2>
   <h3>The 32,654 lines that stay, and why</h3>
-  <p>The stopping point matters as much as the cuts. The one declared dependency left is
-    <code>flask</code>; everything still shipping is Flask's own transitive core. Most of it is exactly
-    what the caveat says to leave with the experts: <span class="hl">password hashing</span>
+  <p>The stopping point deserves as much attention as the cuts. The one declared dependency left is
+    <code>flask</code>; everything still shipping is Flask's own transitive core. Most of it is the
+    kind of code I'd leave with the experts: <span class="hl">password hashing</span>
     (<code>werkzeug.security</code>, required anyway), <span class="hl">autoescaping</span> as the XSS
     defense on every template, and <span class="hl">cookie signing</span> that the first-party CSRF and
-    remember-me modules deliberately ride on rather than reinvent. AI-written replacement is a tool for
-    oversized general engines with test-pinnable slivers, not a mandate to rewrite the platform or the
-    cryptography. This experiment prices the options; where the dial stops in your app is your call.</p>
+    remember-me modules deliberately ride on rather than reinvent. In this experiment, AI-written
+    replacement earned its keep against oversized general-purpose engines whose behavior a test suite
+    can pin down. That is a much narrower claim than rewriting the platform or the
+    cryptography.<a class="fn" id="fnref3" href="#fn3">[3]</a> The numbers here show what each swap
+    cost and saved. How far to take it in your app is your call.</p>
   <figure>
     <p class="fig-title">What one line in pyproject.toml still installs</p>
     <p class="fig-sub">The limited variant's entire dependency list. It resolves to Flask's own transitive
-      core — seven packages, 32,596 LOC, none of it rewritten. Bars are on the same scale
+      core: seven packages, 32,596 LOC, none of it rewritten. Bars are on the same scale
       as the baseline figure above.</p>
     <svg viewBox="0 0 760 262" role="img" aria-labelledby="dT dD">
       <title id="dT">What one line in pyproject.toml still installs</title>
@@ -642,7 +679,8 @@
   <h3>Removal log: what each step shed and cost</h3>
   <p>Every number below comes from re-running the same production-scoped <code>cloc</code> measurement
     after each commit. <span class="hl">~409 lines of dependency code shed for every first-party line
-    added</span>. That's the whole trade in one ratio.</p>
+    added</span>. The 450 lines added are small enough to read in one sitting. The 184,073 they
+    replaced were not.</p>
   <div class="tbl-scroll">
     <table>
       <caption>Third-party (3P) and first-party (1P) production LOC in the limited variant, per step.</caption>
@@ -666,18 +704,50 @@
     </table>
   </div>
   <p class="self-note" style="color:var(--muted); margin-top:14px;">Side story: the same trade
-    exists in dev tooling — <code>python-dotenv</code> (766 LOC, local-only <code>.env</code> loading;
+    exists in dev tooling. <code>python-dotenv</code> (766 LOC, local-only <code>.env</code> loading;
     prod injects real env vars) is a dev dependency here, and the limited variant still swapped it for
-    a 12-line first-party loader. Dev deps can shrink too, but selectively: nobody is about to
+    a 12-line first-party loader. Dev deps can shrink too, though selectively. I'm not about to
     replace pytest.</p>
 
+  <!-- ===== CLOSE ===== -->
+  <h2>What I'd take from this</h2>
+  <h3>Recalibrate the default, don't abandon it</h3>
+  <p>None of this says third-party dependencies were a mistake. Flask is still here, and so is every
+    library doing work I'd rather not own. What moved is the cost of the alternative:
+    <span class="hl">"add the dependency" used to be the cheap answer almost by definition</span>,
+    and for a few of these it stopped being. The 85% came from two decisions rather than from
+    discipline. An ORM for two tables, and an RFC-complete validator for a format check.</p>
+  <p>The practical version is smaller than the headline. Look at your own footprint the way
+    <code>cloc</code> sees it, find the general-purpose engines you're using a sliver of, and price
+    the purpose-built version now that writing it is cheap. A few will be worth owning. Most won't
+    be, and the ones holding your passwords and your session cookies are the last place I'd start.</p>
+  <p>The part I'd stress hardest is the tests. Every removal here was safe because a byte-identical
+    black-box suite, cheap to write, could tell me the app still behaved the same afterward.
+    <span class="hl">Without that regression net, you have no evidence a swap preserved
+    behavior</span>. Without it, you're replacing working code and finding out in production.</p>
+  <p>This is one small app, measured once. A larger team, an older codebase, or compliance
+    requirements I don't have would each argue for keeping more of the stack. My claim is narrow:
+    writing the replacement yourself got cheap, so the build-versus-borrow call is worth making
+    again, one dependency at a time.</p>
+
   <footer>
-    <p><strong>Method note.</strong> "Production scope" counts only code that ships: the dev/test
-      toolchain (<code>pytest</code>, <code>coverage</code>, <code>python-dotenv</code>, and
-      transitive deps, ~143.5k LOC) is excluded, and Python itself is treated as first-party
-      platform. Both variants pass the same
-      138-test black-box suite; the security-sensitive primitives (password hashing, session signing,
-      token comparison) were deliberately <em>not</em> rewritten.</p>
+    <p><strong>Notes</strong></p>
+    <ol class="notes">
+      <li id="fn1"><span class="key">[1]</span> <strong>Production scope.</strong> Every LOC figure on
+        this page counts only code that ships. The dev/test toolchain (<code>pytest</code>,
+        <code>coverage</code>, <code>python-dotenv</code>, and their transitive deps, ~143.5k LOC) is
+        excluded, and Python itself is treated as first-party platform.
+        <a class="back" href="#fnref1" aria-label="Back to text">↩</a></li>
+      <li id="fn2"><span class="key">[2]</span> <strong>The shared suite.</strong> 138 tests, byte-identical
+        across both variants, asserting only through the HTTP boundary or the stdlib
+        <code>sqlite3</code> module. No test body knows which implementation sits behind the seam,
+        which is what lets the same suite judge both.
+        <a class="back" href="#fnref2" aria-label="Back to text">↩</a></li>
+      <li id="fn3"><span class="key">[3]</span> <strong>What stayed off the table.</strong> The
+        security-sensitive primitives (password hashing, session signing, token comparison) were
+        deliberately <em>not</em> rewritten, in either variant.
+        <a class="back" href="#fnref3" aria-label="Back to text">↩</a></li>
+    </ol>
     <p>Source, both variants, and full research notes:
       <a href="https://github.com/AlteredCraft/3p-deps-case-study">github.com/AlteredCraft/3p-deps-case-study</a>.
       This findings page is itself zero-dependency: hand-authored HTML and inline SVG, no libraries,
